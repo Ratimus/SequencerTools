@@ -20,11 +20,9 @@
   "license": "MIT",
   "homepage": "TBD",
   "dependencies": {
-  [
     "robtillaart/MCP_ADC": "0.2.1",
     "robtillaart/bitHelpers": "0.1.11",
     "robtillaart/FastShiftOut": "0.3.2"
-  ]
   },
   "frameworks": "Arduino",
   "platforms": "ESP32"
