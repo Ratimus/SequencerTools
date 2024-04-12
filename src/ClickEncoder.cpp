@@ -28,12 +28,14 @@ const uint8_t  ENC_ACCEL_DEC (2);
 #if ENC_DECODER != ENC_NORMAL
 #  ifdef ENC_HALFSTEP
      // decoding table for hardware with flaky notch (half resolution)
-     const int8_t ClickEncoder::table[16] __attribute__((__progmem__)) = {
+     const int8_t ClickEncoder::table[16] __attribute__((__progmem__))
+     {
        0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, -1, 0, 0
      };
 #  else
      // decoding table for normal hardware
-     const int8_t ClickEncoder::table[16] __attribute__((__progmem__)) = {
+     const int8_t ClickEncoder::table[16] __attribute__((__progmem__))
+     {
        0, 1, -1, 0, -1, 0, 0, 1, 1, 0, 0, -1, 0, -1, 1, 0
      };
 #  endif // not def ENC_HALFSTEP
@@ -89,16 +91,19 @@ void ClickEncoder::service(void)
 #if ENC_DECODER == ENC_FLAKY
   last = (last << 2) & 0x0F;
 
-  if (digitalRead(pinA) == pinsActive) {
+  if (digitalRead(pinA) == pinsActive)
+  {
     last |= 2;
   }
 
-  if (digitalRead(pinB) == pinsActive) {
+  if (digitalRead(pinB) == pinsActive)
+  {
     last |= 1;
   }
 
   uint8_t tbl = pgm_read_byte(&table[last]);
-  if (tbl) {
+  if (tbl)
+  {
     delta += tbl;
     moved = true;
   }
@@ -169,10 +174,12 @@ int16_t ClickEncoder :: getClicks(void)
   int16_t r = 0;
   int16_t accel = ((accelerationEnabled) ? (acceleration >> 8) : 0);
 
-  if (val < 0) {
+  if (val < 0)
+  {
     r -= 1 + accel;
   }
-  else if (val > 0) {
+  else if (val > 0)
+  {
     r += 1 + accel;
   }
 

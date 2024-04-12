@@ -15,9 +15,8 @@ purpose:
   as doubleclick/longpress are now hardcoded to back.
 
 ***/
+#ifdef ARDUINO_MENU_LIBRARY
 
-
-// not sure where to put this..
 
 #ifndef __rotaryEventIn_h__
 #define __rotaryEventIn_h__
@@ -100,3 +99,4 @@ template<class T> inline T& operator^= (T& a, T b) { return (T&)((int&)a ^= (int
 
 
 #endif /* __rotaryEventIn_h__ */
+#endif /*notdef ARDUINO_MENU_LIBRARY*/

@@ -45,6 +45,7 @@ encEvnts ClickEncoderInterface :: getEvent(void)
         heldClicked = 1;
         return encEvnts::ShiftLeft;
       }
+
       return encEvnts::Left;
     }
   }
@@ -57,11 +58,13 @@ encEvnts ClickEncoderInterface :: getEvent(void)
       {
         return encEvnts::Click;
       }
-      else if (prevState == ButtonState::DoubleClicked)
+
+      if (prevState == ButtonState::DoubleClicked)
       {
         return encEvnts::DblClick;
       }
-      else if (prevState == ButtonState::ClickedAndHeld)
+
+      if (prevState == ButtonState::ClickedAndHeld)
       {
         return encEvnts::ClickHold;
       }
@@ -72,10 +75,8 @@ encEvnts ClickEncoderInterface :: getEvent(void)
         {
           return encEvnts::Press;
         }
-        else
-        {
-          return encEvnts::Hold;
-        }
+
+        return encEvnts::Hold;
       }
       else
       {
