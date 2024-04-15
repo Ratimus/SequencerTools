@@ -14,16 +14,8 @@
 #include <bitHelpers.h>
 #include <FastShiftOut.h>
 
-// enable
-// set
-// clock
-// clockIn
-// clear
-// reset
-// pending
-// preEnable
-
 /*
+  TODO: incorporate this in the library's example files:
   // setting all pins at the same time to either HIGH or LOW
   sr.setAllHigh(); // set all pins HIGH
   sr.setAllLow();  // set all pins LOW
@@ -41,7 +33,7 @@
   sr.setNoUpdate(0, HIGH);
   sr.setNoUpdate(1, LOW);
   sr.updateRegisters(); // update the pins to the set values
-  */
+*/
 
 template <typename T>
   class OutputRegister : public latchable<T>

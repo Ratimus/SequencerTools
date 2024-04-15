@@ -12,13 +12,12 @@
   [
     {
       "name": "Ratimus",
-      "email": "",
-      "url": "",
+      "email": "tbd",
+      "url": "https://github.com/Ratimus",
       "maintainer": true
     }
   ],
   "license": "MIT",
-  "homepage": "TBD",
   "dependencies": {
     "robtillaart/MCP_ADC": "0.2.1",
     "robtillaart/bitHelpers": "0.1.11",
