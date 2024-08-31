@@ -17,19 +17,20 @@ class GateInABC
 {
 protected:
 
-  // You can't have more than this many gates in a single object of this class.
-  // If you want to make this smaller, you can also change the volatiles to save some memory,
-  // like change them to uint_8 if you only need 8 or fewer values. You could also make them
-  // uint64_t if you want more than 32.
-  const uint8_t NUM_GATES;
-  static const uint8_t MAX_GATES = 32;
-  virtual uint32_t readPins() = 0;
-
   // These are going to be our mapped values, i.e. Gate 0 <--> BIT0, Gate 1 <--> BIT1, etc.
   volatile uint32_t _gates;
   volatile uint32_t _gatesDiff;
   volatile uint32_t _rising;
   volatile uint32_t _falling;
+
+  // You can't have more than this many gates in a single object of this class.
+  // If you want to make this smaller, you can also change the volatiles to save some memory,
+  // like change them to uint_8 if you only need 8 or fewer values. You could also make them
+  // uint64_t if you want more than 32.
+  static const uint8_t MAX_GATES = 32;
+  const uint8_t NUM_GATES;
+
+  virtual uint32_t readPins() = 0;
 
   // This is an Abstract Base Class, meant only to be inherited from, so limit access to its
   // constructor
