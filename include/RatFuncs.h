@@ -9,12 +9,9 @@
 
 #include <Arduino.h>
 
-// #ifndef CASSIDEBUG
-// #define CASSIDEBUG
-// #endif
-
-
-#ifdef CASSIDEBUG
+// Define this in Main.cpp before importing this file (or any other files
+// that import it) to enable serial debugging
+#ifdef RATDEBUG
   #define dbprint Serial.print
   #define dbprintf Serial.printf
   #define dbprintln Serial.println

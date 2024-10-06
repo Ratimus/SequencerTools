@@ -64,6 +64,8 @@ public:
     uint32_t prev(_gates);
     _gates = readPins();
     _gatesDiff = _gates ^ prev;
+    _rising |= (_gatesDiff & _gates);
+    _falling |= (_gatesDiff & ~_gates);
     sei();
   }
 
