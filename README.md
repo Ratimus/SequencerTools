@@ -9,3 +9,5 @@ Contents:
 - OutputRegister: Extends the "Latchable" concept to a physical hardware serial-to-parallel shift register (e.g. 74HC595)
 - SharedControl: A polymorphic, software-defined potentiometer that can be locked on a value when changing modes. When returned to a prior mode, the value of the control will not change until the hardware control is physically moved to the position corresponding to the locked value.
 - RatFuncs: Some odds, ends, and debugging utilities
+- OutputChannel: Abstracts a single DAC channel so that note values can be written to it without worrying about converting to HW units. Currently supports MCP4728; may add more in the future
+- OutputDac: Bank to initialize and hold any number of logical OutputChannels
