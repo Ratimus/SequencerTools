@@ -104,13 +104,13 @@ public:
   // Returns Output value
   T Q()
   {
-    return latchable<T>::Q;
+    return latchable<T>::out;
   }
 
   // Returns recent Input value
   T D()
   {
-    return latchable<T>::D;
+    return latchable<T>::in;
   }
 
   void allOff()
