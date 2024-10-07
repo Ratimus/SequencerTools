@@ -22,7 +22,7 @@ typedef std::shared_ptr<Adafruit_MCP4728> dac_ptr;
 // This class abstracts a single output channel of a DAC, allowing you to
 // pre-enable note values and update the DAC with the raw value corresponding
 // to that note when clocked. Individual channels can have their own unique
-// calibration tables to imporove accuracy
+// calibration tables to improve accuracy
 class OutputChannel : public latchable<uint16_t>
 {
   dac_ptr MCP;
@@ -35,6 +35,7 @@ public:
   void setDacPointer(dac_ptr pDac) { MCP = pDac; }
   virtual void set(uint16_t note) override;
   virtual uint16_t clock() override;
+  virtual void operator = (uint16_t val) override { set(val); }
 };
 
 typedef std::shared_ptr<OutputChannel> channel_ptr;

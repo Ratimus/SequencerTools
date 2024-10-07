@@ -11,44 +11,52 @@
 // ------------------------------------------------------------------------
 #ifndef LASH_A_BULL_DOT_AITCH
 #define LASH_A_BULL_DOT_AITCH
-#include <Arduino.h>
-
 
 template <typename T>
   class latchable
 {
 protected:
-  T ParamR;
-  T ParamQ;
-  T ParamS;
-  bool enabled;
+  // These values are protected, so access to them is limited.
+  // We have |out|, a const reference to the output state ParamQ, meaning it's essentially
+  // a read-only value.
+  // We *can* change the value of |in|, our Data input, which is a reference to ParamS.
+  // When we update() our latch, the output |out| changes to reflect the current state of
+  // its input, |in|.
+  T ParamR;         // State after RESET
+  T ParamQ;         // Output state
+  T ParamS;         // Input state
+  bool enabled;     // Set low to hold output state constant regardless of input
 
 public:
-  const T& Q;
-  T& D;
+  const T& out;     // Read-only OUTPUT state
+  T& in;            // DATA input/SET value
 
-  explicit latchable(T data):
+  // CTOR
+  latchable(T data):
     ParamR(data),
     ParamQ(ParamR),
     ParamS(ParamQ),
     enabled(true),
-    Q(ParamQ),
-    D(ParamS)
+    out(ParamQ),
+    in(ParamS)
   { ; }
 
+  // DTOR
+  ~latchable() { ; }
+
   // Just like on a HW latch - set LOW and it won't do anything
-  bool enable(bool en)
+  virtual bool enable(bool en)
   {
     enabled = en;
     return enabled;
   }
 
   // Loads input but doesn't set ouput until a clock is received
-  virtual void set(T data)
+  virtual void set(T val)
   {
     if (enabled)
     {
-      ParamS = data;
+      ParamS = val;
     }
   }
 
@@ -56,40 +64,43 @@ public:
   virtual T clock(void)
   {
     if (enabled) { ParamQ = ParamS; }
-    return Q;
+    return out;
   }
 
   // Latches in data and sets output in a single step
-  T clockIn(T data)
+  virtual T clockIn(T val)
   {
-    set(data);
+    set(val);
     return clock();
   }
 
   // Clears internal state without affecting output
-  void clear()
+  virtual void clear()
   {
     set(ParamR);
   }
 
   // Clears internal state and outputs
-  void reset()
+  virtual void reset()
   {
     clear();
     clock();
   }
 
   // Returns true if current output state does not match input state
-  T pending()
+  virtual bool pending()
   {
-    return (D - Q);
+    return (in != out);
   }
 
   // Change the default value to which element reverts on RESET
-  void preEnable(T data)
+  virtual void preEnable(T val)
   {
-    ParamR = data;
+    ParamR = val;
   }
+
+  virtual bool operator == (latchable<T> comp) { return comp.ParamQ == this->ParamQ; }
+  virtual void operator = (T val) { ParamS = val; }
 };
 
 

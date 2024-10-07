@@ -64,7 +64,7 @@ public:
 
   T clock() override
   {
-    latchable<T> :: clock();
+    latchable<T>::clock();
     writeOutputRegister();
     return Q();
   }
@@ -73,7 +73,7 @@ public:
   void tempWrite(uint8_t byteVal, uint8_t byteNum = 0)
   {
     setReg(byteVal, byteNum);
-    latchable<T> :: clock();
+    latchable<T>::clock();
     writeOutputRegister();
   }
 
@@ -98,19 +98,19 @@ public:
     T mask(T(0xFF)  << (8 * bytenum));
     T temp(D() & ~mask);
     temp |= setVal;
-    latchable<T> :: set(temp);
+    latchable<T>::set(temp);
   }
 
   // Returns Output value
   T Q()
   {
-    return latchable<T> :: Q;
+    return latchable<T>::Q;
   }
 
   // Returns recent Input value
   T D()
   {
-    return latchable<T> :: D;
+    return latchable<T>::D;
   }
 
   void allOff()

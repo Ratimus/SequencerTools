@@ -29,7 +29,7 @@ const CalTable calTables[4]
 
 //
 OutputChannel::OutputChannel(uint8_t ch, dac_ptr pDac /*=nullptr*/):
-  latchable<uint16_t>(0),
+  latchable<uint16_t>((uint16_t)0),
   calVals(calTables[ch]),
   MCP(pDac)
 {
@@ -82,7 +82,6 @@ uint16_t OutputChannel::valFromNote(uint8_t note) const
     octUp = calVals.table[CAL_TABLE_HIGH_OCTAVE];
     octDn = calVals.table[CAL_TABLE_HIGH_OCTAVE - 1];
   }
-  // dbprintf("octUp: %u, octDn: %u - ", octUp, octDn);
 
   // Look Ma, no floats!!!
   uint16_t inc((octUp - octDn) / 12);
