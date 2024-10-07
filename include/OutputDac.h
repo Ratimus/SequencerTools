@@ -2,7 +2,6 @@
 #define MULTICHANNEL_DAC
 
 #include <Arduino.h>
-#include <Adafruit_MCP4728.h>
 #include <RatFuncs.h>
 #include <vector>
 #include "OutputChannel.h"

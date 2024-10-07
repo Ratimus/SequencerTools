@@ -49,14 +49,10 @@ void OutputChannel::set(uint16_t note)
 uint16_t OutputChannel::clock()
 {
   uint16_t setVal(latchable<uint16_t>::clock());
-  std::weak_ptr<Adafruit_MCP4728> MCP_ptr = MCP;
-  if (auto dac = MCP_ptr.lock())
-  {
-    dac->setChannelValue(calVals.dacChannel,
-                         setVal,
-                         MCP4728_VREF_INTERNAL,
-                         MCP4728_GAIN_2X);
-  }
+  MCP->setChannelValue(calVals.dacChannel,
+                        setVal,
+                        MCP4728_VREF_INTERNAL,
+                        MCP4728_GAIN_2X);
   return setVal;
 }
 

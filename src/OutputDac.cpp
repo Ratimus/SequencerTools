@@ -1,4 +1,5 @@
 #include "OutputDac.h"
+#include <Adafruit_MCP4728.h>
 
 MultiChannelDac::MultiChannelDac(uint8_t numCh):
   NUM_DAC_CHANNELS(numCh),
@@ -21,7 +22,7 @@ void MultiChannelDac::init()
 {
   if (ready) return;
 
-  std::shared_ptr<Adafruit_MCP4728>MCP4728(new Adafruit_MCP4728);
+  std::shared_ptr<Adafruit_MCP4728> MCP4728 = std::make_shared<Adafruit_MCP4728>();
 
   // Set up external
   dbprintln("MCP4728 test...");
