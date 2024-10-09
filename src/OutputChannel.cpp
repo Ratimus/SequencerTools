@@ -38,10 +38,11 @@ OutputChannel::OutputChannel(uint8_t ch, dac_ptr pDac /*=nullptr*/):
 
 
 // Sets up a note to be written to DAC (which it will write when clocked)
-void OutputChannel::set(uint16_t note)
+uint16_t OutputChannel::set(uint16_t note)
 {
   uint16_t nextVal(valFromNote((uint16_t)note));
   latchable<uint16_t>::set(nextVal);
+  return note;
 }
 
 

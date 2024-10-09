@@ -34,7 +34,7 @@ public:
   // CTOR
   latchable(T data):
     ParamR(data),
-    ParamQ(ParamR),
+    ParamQ(data),
     ParamS(ParamQ),
     enabled(true),
     out(ParamQ),
@@ -52,12 +52,14 @@ public:
   }
 
   // Loads input but doesn't set ouput until a clock is received
-  virtual void set(T val)
+  virtual T set(T val)
   {
     if (enabled)
     {
       ParamS = val;
     }
+
+    return ParamS;
   }
 
   // Latches internal state to output
@@ -99,8 +101,15 @@ public:
     ParamR = val;
   }
 
-  virtual bool operator == (latchable<T> comp) { return comp.ParamQ == this->ParamQ; }
-  virtual void operator = (T val) { ParamS = val; }
+  virtual bool operator == (latchable<T> comp) { return (comp.ParamQ == this->ParamQ); }
+
+  template <typename N>
+  bool operator == (N) = delete;
+
+  virtual T operator = (T val) { ParamS = val; return ParamS; }
+
+  template <typename N>
+  T operator = (N) = delete;
 };
 
 

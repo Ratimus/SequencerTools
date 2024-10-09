@@ -33,9 +33,9 @@ public:
 
   OutputChannel(uint8_t ch, dac_ptr pDac = nullptr);
   void setDacPointer(dac_ptr pDac) { MCP = pDac; }
-  virtual void set(uint16_t note) override;
+  virtual uint16_t set(uint16_t note) override;
   virtual uint16_t clock() override;
-  virtual void operator = (uint16_t val) override { set(val); }
+  virtual uint16_t operator = (uint16_t val) override { return set(val); }
 };
 
 typedef std::shared_ptr<OutputChannel> channel_ptr;
