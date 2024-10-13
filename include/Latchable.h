@@ -41,11 +41,21 @@ public:
     in(ParamS)
   { ; }
 
+  // Copy CTOR
+  latchable(const latchable<T>& L):
+    ParamR(L.ParamR),
+    ParamQ(L.ParamQ),
+    ParamS(ParamQ),
+    enabled(true),
+    out(ParamQ),
+    in(ParamS)
+  { ; }
+
   // DTOR
   ~latchable() { ; }
 
   // Just like on a HW latch - set LOW and it won't do anything
-  virtual bool enable(bool en)
+  virtual bool enable(bool en = true)
   {
     enabled = en;
     return enabled;
@@ -101,16 +111,24 @@ public:
     ParamR = val;
   }
 
-  virtual bool operator == (latchable<T> comp) { return (comp.ParamQ == this->ParamQ); }
+  // Comparison to another latchable<T>, returns true if both outputs match
+  // (input, enable, and reset values ignored)
+  virtual bool operator == (latchable<T> comp)
+  {
+    return (comp.ParamQ == this->ParamQ);
+  }
 
-  template <typename N>
-  bool operator == (N) = delete;
-
-  virtual T operator = (T val) { ParamS = val; return ParamS; }
+  // Comparison to base type, returns true if output == comparison value
+  virtual bool operator == (T comp)
+  {
+    return (comp == this->ParamQ);
+  }
 
   template <typename N>
   T operator = (N) = delete;
-};
 
+  template <typename N>
+  bool operator == (N) = delete;
+};
 
 #endif

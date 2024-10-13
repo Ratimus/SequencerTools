@@ -3,31 +3,27 @@
 
 // DAC channels (maps indices to actual channels)
 const uint8_t NUM_DAC_CHANNELS(4);
-// const MCP4728_channel_t DAC_CH [NUM_DAC_CHANNELS] { MCP4728_CHANNEL_D,
-//                                                     MCP4728_CHANNEL_B,
-//                                                     MCP4728_CHANNEL_A,
-//                                                     MCP4728_CHANNEL_C };
 
 // // Cal tables: for each HW channel of the DAC, these are the raw values you need for octaves 0 - 8
-// const uint16_t DAC_0_CAL[]{0, 393, 802, 1217, 1627, 2041, 2459, 2869, 3279};  // 409 415 410 414 418 410 410
-// const uint16_t DAC_1_CAL[]{0, 408, 818, 1230, 1638, 2049, 2470, 2882, 3285};  // 410 412 408 411 421 412 413
-// const uint16_t DAC_2_CAL[]{0, 400, 811, 1224, 1631, 2041, 2459, 2872, 3280};  // 411 413 407 410 418 413 408
-// const uint16_t DAC_3_CAL[]{0, 394, 804, 1214, 1625, 2036, 2454, 2862, 3270};  // 410 410 411 411 418 408 408
+static const MCP4728_channel_t DAC_CH[] {MCP4728_CHANNEL_D, MCP4728_CHANNEL_B, MCP4728_CHANNEL_A, MCP4728_CHANNEL_C};
 
-// // Last entry in your cal table, i.e. if there's nine values, this should be eight
-// const uint8_t CAL_TABLE_HIGH_OCTAVE(8);
-// static const uint16_t* DAC_CAL_TABLES[NUM_DAC_CHANNELS]{DAC_0_CAL, DAC_1_CAL, DAC_2_CAL, DAC_3_CAL};
-
-
-const CalTable calTables[4]
+uint16_t calvals[4][9]
 {
-  {{0, 394, 804, 1214, 1625, 2036, 2454, 2862, 3270}, 0, MCP4728_CHANNEL_D}, // 410 410 411 411 418 408 408
-  {{0, 408, 818, 1230, 1638, 2049, 2470, 2882, 3285}, 1, MCP4728_CHANNEL_B}, // 410 412 408 411 421 412 413
-  {{0, 393, 802, 1217, 1627, 2041, 2459, 2869, 3279}, 2, MCP4728_CHANNEL_A}, // 409 415 410 414 418 410 410
-  {{0, 400, 811, 1224, 1631, 2041, 2459, 2872, 3280}, 3, MCP4728_CHANNEL_C}  // 411 413 407 410 418 413 408
+  {0, 394, 804, 1214, 1625, 2036, 2454, 2862, 3270}, // 410 410 411 411 418 408 408 - MCP4728_CHANNEL_D
+  {0, 408, 818, 1230, 1638, 2049, 2470, 2882, 3285}, // 410 412 408 411 421 412 413 - MCP4728_CHANNEL_B
+  {0, 393, 802, 1217, 1627, 2041, 2459, 2869, 3279}, // 409 415 410 414 418 410 410 - MCP4728_CHANNEL_A
+  {0, 400, 811, 1224, 1631, 2041, 2459, 2872, 3280}, // 411 413 407 410 418 413 408 - MCP4728_CHANNEL_C
 };
 
-//
+CalTable calTables[4]
+{
+  CalTable(calvals[0], 0, MCP4728_CHANNEL_D),
+  CalTable(calvals[1], 1, MCP4728_CHANNEL_B),
+  CalTable(calvals[2], 2, MCP4728_CHANNEL_A),
+  CalTable(calvals[3], 3, MCP4728_CHANNEL_C)
+};
+
+
 OutputChannel::OutputChannel(uint8_t ch, dac_ptr pDac /*=nullptr*/):
   latchable<uint16_t>((uint16_t)0),
   calVals(calTables[ch]),
@@ -38,7 +34,7 @@ OutputChannel::OutputChannel(uint8_t ch, dac_ptr pDac /*=nullptr*/):
 
 
 // Sets up a note to be written to DAC (which it will write when clocked)
-uint16_t OutputChannel::set(uint16_t note)
+uint16_t  OutputChannel::set(uint16_t note)
 {
   uint16_t nextVal(valFromNote((uint16_t)note));
   latchable<uint16_t>::set(nextVal);
@@ -50,7 +46,13 @@ uint16_t OutputChannel::set(uint16_t note)
 uint16_t OutputChannel::clock()
 {
   uint16_t setVal(latchable<uint16_t>::clock());
-  MCP->setChannelValue(calVals.dacChannel,
+  if (MCP == nullptr)
+  {
+    dbprintf("OutputChannel %u DAC is a nullptr!\n", calVals.logicalChannel);
+    while (1) {;}
+  }
+
+  MCP->setChannelValue( calVals.dacChannel,
                         setVal,
                         MCP4728_VREF_INTERNAL,
                         MCP4728_GAIN_2X);
