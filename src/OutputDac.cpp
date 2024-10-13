@@ -40,8 +40,7 @@ void MultiChannelDac::init()
   for (uint8_t ch(0); ch < NUM_DAC_CHANNELS; ++ch)
   {
     channel_ptr newChannel;
-    newChannel.reset(new OutputChannel(ch));
-    newChannel->setDacPointer(MCP4728);
+    newChannel.reset(new OutputChannel(ch, MCP4728));
     DAC.push_back(newChannel);
   }
 

@@ -29,7 +29,10 @@ OutputChannel::OutputChannel(uint8_t ch, dac_ptr pDac /*=nullptr*/):
   calVals(calTables[ch]),
   MCP(pDac)
 {
-  clockIn(0);
+  if (MCP != nullptr)
+  {
+    clockIn(0);
+  }
 }
 
 
