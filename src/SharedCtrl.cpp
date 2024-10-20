@@ -11,11 +11,11 @@
 
 ////////////////////////////////////////////////
 // Constructor
-HardwareCtrl :: HardwareCtrl(
-  MCP3208* inAdc,
+HardwareCtrl::HardwareCtrl(
+  MCP3208& inAdc,
   uint8_t inCh,
   uint8_t numSamps):
-    pADC       (inAdc),
+    pADC       (std::make_shared<MCP3208>(inAdc)),
     ch         (inCh),
     adcMax     (pADC->maxValue()),
     buffSize   (constrain(numSamps, 1, MAX_BUFFER_SIZE-1)),
@@ -38,7 +38,7 @@ HardwareCtrl :: HardwareCtrl(
 
 ////////////////////////////////////////////////
 // Call this in an ISR at like 1ms or something
-void HardwareCtrl :: service()
+void HardwareCtrl::service()
 {
   if (pADC == NULL)
   {
@@ -60,7 +60,7 @@ void HardwareCtrl :: service()
 
 ////////////////////////////////////////////////
 // Report 'ready' if buffer is full
-bool HardwareCtrl :: isReady()
+bool HardwareCtrl::isReady()
 {
   bool retVal;
   cli();
@@ -72,7 +72,7 @@ bool HardwareCtrl :: isReady()
 
 ////////////////////////////////////////////////
 // Get the (smoothed) raw ADC value
-int16_t HardwareCtrl :: read()
+int16_t HardwareCtrl::read()
 {
   uint8_t samps;
   int16_t retVal;
@@ -109,7 +109,7 @@ int16_t HardwareCtrl :: read()
 
 ////////////////////////////////////////////////
 // Get the highest value the ADC can return
-int16_t HardwareCtrl :: maxValue()
+int16_t HardwareCtrl::maxValue()
 {
   return adcMax;
 }
@@ -121,17 +121,17 @@ int16_t HardwareCtrl :: maxValue()
 // you'll create a VirtualControl (which extends this class).
 ////////////////////////////////////////////////
 // Constructor
-LockingCtrl :: LockingCtrl(
-  MCP3208 * pADC,
+LockingCtrl::LockingCtrl(
+  MCP3208 & inAdc,
   uint8_t adcChannel,
   int16_t inVal,
   bool    createLocked):
     min_    (0),
-    max_    (pADC->maxValue()),
+    max_    (inAdc.maxValue()),
     lockVal_ (inVal)
 {
-  pHwCtrl_ = new HardwareCtrl(pADC, adcChannel, MAX_BUFFER_SIZE);
-  // dbprintf("LockingCtrl %p :: pHwCtrl = %p\n", this, pHwCtrl_);
+  pHwCtrl_ = std::make_shared<HardwareCtrl>(inAdc, adcChannel, MAX_BUFFER_SIZE);
+  // dbprintf("LockingCtrl %p::pHwCtrl = %p\n", this, pHwCtrl_);
   while (!pHwCtrl_->isReady())
   {
     pHwCtrl_->service();
@@ -145,16 +145,10 @@ LockingCtrl :: LockingCtrl(
   }
 }
 
-LockingCtrl :: ~LockingCtrl()
-{
-  delete pHwCtrl_;
-  pHwCtrl_ = 0;
-}
-
 
 ////////////////////////////////////////////////
 // Returns lower end of range
-int16_t LockingCtrl :: getMin()
+int16_t LockingCtrl::getMin()
 {
   return min_;
 }
@@ -162,7 +156,7 @@ int16_t LockingCtrl :: getMin()
 
 ////////////////////////////////////////////////
 // Returns upper end of range
-int16_t LockingCtrl :: getMax()
+int16_t LockingCtrl::getMax()
 {
   return max_;
 }
@@ -170,7 +164,7 @@ int16_t LockingCtrl :: getMax()
 
 ////////////////////////////////////////////////
 // Get the lock value regardles of lock state
-int16_t LockingCtrl :: getLockVal()
+int16_t LockingCtrl::getLockVal()
 {
   return lockVal_;
 }
@@ -178,7 +172,7 @@ int16_t LockingCtrl :: getLockVal()
 
 ////////////////////////////////////////////////
 // LockState getter
-LockState LockingCtrl :: getLockState()
+LockState LockingCtrl::getLockState()
 {
   LockState tmpState;
   cli();
@@ -190,7 +184,7 @@ LockState LockingCtrl :: getLockState()
 
 ////////////////////////////////////////////////
 // LockState setter
-LockState LockingCtrl :: setLockState_(LockState state)
+LockState LockingCtrl::setLockState_(LockState state)
 {
   LockState tmpState(getLockState());
   if (state != tmpState)
@@ -206,7 +200,7 @@ LockState LockingCtrl :: setLockState_(LockState state)
 
 ////////////////////////////////////////////////
 // Returns current ADC reading if unlocked, else returns locked value
-int16_t LockingCtrl :: read()
+int16_t LockingCtrl::read()
 {
   LockState tmpState(getLockState());
 
@@ -235,7 +229,7 @@ int16_t LockingCtrl :: read()
 
 ////////////////////////////////////////////////
 // Returns the raw ADC value regardless of LockState
-int16_t LockingCtrl :: peekMeasuredVal()
+int16_t LockingCtrl::peekMeasuredVal()
 {
   return pHwCtrl_->read();
 }
@@ -243,7 +237,7 @@ int16_t LockingCtrl :: peekMeasuredVal()
 
 ////////////////////////////////////////////////
 // Sets LockVal to current (measured) real value regardless of LockState
-void LockingCtrl :: overWrite()
+void LockingCtrl::overWrite()
 {
   LockState tmpState(getLockState());
   setLockVal(peekMeasuredVal());
@@ -256,7 +250,7 @@ void LockingCtrl :: overWrite()
 
 ////////////////////////////////////////////////
 // Ignore current reading, overwrite the lock value with jamVal
-void LockingCtrl :: setLockVal(int16_t jamVal)
+void LockingCtrl::setLockVal(int16_t jamVal)
 {
   lockVal_ = jamVal;
 }
@@ -264,16 +258,16 @@ void LockingCtrl :: setLockVal(int16_t jamVal)
 
 ////////////////////////////////////////////////
 // Lock the control at its current value if it isn't already locked
-void LockingCtrl :: lock()
+void LockingCtrl::lock()
 {
   setLockVal(read());
-  setLockState_(LockState :: STATE_LOCKED);
+  setLockState_(LockState::STATE_LOCKED);
 }
 
 
 ////////////////////////////////////////////////
 // Activates the control; it can now be unlocked
-LockState LockingCtrl :: reqUnlock()
+LockState LockingCtrl::reqUnlock()
 {
   if (getLockState() == STATE_LOCKED)
   {
@@ -288,7 +282,7 @@ LockState LockingCtrl :: reqUnlock()
 
 ////////////////////////////////////////////////
 // Returns true if ADC sample buffer is full
-bool LockingCtrl :: isReady()
+bool LockingCtrl::isReady()
 {
   return pHwCtrl_->isReady();
 }
@@ -304,14 +298,14 @@ bool LockingCtrl :: isReady()
 
 ////////////////////////////////////////////////
 // Constructor
-VirtualCtrl :: VirtualCtrl(
-  MCP3208 * pADC,
+VirtualCtrl::VirtualCtrl(
+  MCP3208 & inAdc,
   uint8_t adcChannel,
   int16_t inSlice,
   int16_t max,
   int16_t min,
   bool createLocked):
-    LockingCtrl(pADC, adcChannel, inSlice, createLocked)
+    LockingCtrl(inAdc, adcChannel, inSlice, createLocked)
 {
   while (!pHwCtrl_->isReady())
   {
@@ -330,7 +324,7 @@ VirtualCtrl :: VirtualCtrl(
 
 ////////////////////////////////////////////////
 // Change the range of values the control can return
-void VirtualCtrl :: setMaxAndMin(int16_t max, int16_t min)
+void VirtualCtrl::setMaxAndMin(int16_t max, int16_t min)
 {
   // dbprintf("VirtualControl %p range WAS [%d - %d], IS [%d - %d]\n", this, min_, max_, min, max);
   if (max < lockVal_ || min > lockVal_)
@@ -344,7 +338,7 @@ void VirtualCtrl :: setMaxAndMin(int16_t max, int16_t min)
 
 ////////////////////////////////////////////////
 // Returns current (measured) value regardless of LockState
-int16_t VirtualCtrl :: peekMeasuredVal()
+int16_t VirtualCtrl::peekMeasuredVal()
 {
   return valToSlice(pHwCtrl_->read());
 }
@@ -355,7 +349,7 @@ int16_t VirtualCtrl :: peekMeasuredVal()
 //  If an unlock is requested and its measured val == LockVal, unlock it
 //  If it's locked, return LockVal
 //  If it's unlocked, return measured val
-int16_t VirtualCtrl :: read()
+int16_t VirtualCtrl::read()
 {
   LockState tmpState(getLockState());
 
@@ -388,7 +382,7 @@ int16_t VirtualCtrl :: read()
 
 ////////////////////////////////////////////////
 // Figure out what ADC reading you'd need to match the given control value [tgtSlice]
-int16_t VirtualCtrl :: sliceToVal(int16_t tgtSlice)
+int16_t VirtualCtrl::sliceToVal(int16_t tgtSlice)
 {
   return map(tgtSlice, min_, max_ + 1, 0, pHwCtrl_->maxValue() + 1);
 }
@@ -396,7 +390,7 @@ int16_t VirtualCtrl :: sliceToVal(int16_t tgtSlice)
 
 ////////////////////////////////////////////////
 // Get the control value corresponding to a given ADC value [val]
-int16_t VirtualCtrl :: valToSlice(int16_t val)
+int16_t VirtualCtrl::valToSlice(int16_t val)
 {
   return map(val, 0, pHwCtrl_->maxValue() + 1, min_, max_ + 1);
 }
@@ -405,33 +399,27 @@ int16_t VirtualCtrl :: valToSlice(int16_t val)
 ////////////////////////////////////////////////
 // Manager class to serve as a single point of interaction for an array of virtual controls
 // in which only one virtual control is active at a time
-MultiModeCtrl :: MultiModeCtrl(
+MultiModeCtrl::MultiModeCtrl(
   uint8_t numCtrls,
-  MCP3208 * pADC,
+  MCP3208 & inAdc,
   uint8_t adcChannel,
   uint8_t numVals):
     numModes_(numCtrls)
 {
   for (auto idx(0); idx < numModes_; ++idx)
   {
-    VirtualCtrl * pvc = new VirtualCtrl(pADC,
-                                        adcChannel,
-                                        numVals / 2,
-                                        numVals);
-    pVirtualCtrls[idx] = pvc;
+    pVirtualCtrls.push_back(std::make_shared<VirtualCtrl>(inAdc, adcChannel, numVals / 2, numVals));
   }
-  pActiveCtrl = new VirtualCtrl(pADC,
-                                adcChannel,
-                                numVals / 2,
-                                numVals,
-                                0,
-                                false);
+  // This is not merely a pointer to an existing control because we want to edit and modify it
+  // without affecting the control it was originally based on. That's why we need to copy the pDest
+  // fields into it rather than pointing it somewhere else
+  pActiveCtrl = std::make_shared<VirtualCtrl>(inAdc, adcChannel, numVals / 2, numVals, 0, false);
 }
 
 
 ////////////////////////////////////////////////
 // Returns the number of VirtualCtrls sharing a single HwCtrl
-uint8_t MultiModeCtrl :: getNumModes()
+uint8_t MultiModeCtrl::getNumModes()
 {
   return numModes_;
 }
@@ -439,7 +427,7 @@ uint8_t MultiModeCtrl :: getNumModes()
 
 ////////////////////////////////////////////////
 // Returns the value of the currently selected VirtualCtrl
-int16_t MultiModeCtrl :: read()
+int16_t MultiModeCtrl::read()
 {
   return pActiveCtrl->read();
 }
@@ -447,7 +435,7 @@ int16_t MultiModeCtrl :: read()
 
 ////////////////////////////////////////////////
 // Locks the current VirtualCtrl and activates sel
-void MultiModeCtrl :: selectActiveBank(uint8_t bank)
+void MultiModeCtrl::selectActiveBank(uint8_t bank)
 {
   copySettings(pActiveCtrl, pVirtualCtrls[bank]);
 }
@@ -455,7 +443,7 @@ void MultiModeCtrl :: selectActiveBank(uint8_t bank)
 
 ////////////////////////////////////////////////
 // Lock the active VirtualCtrl
-void MultiModeCtrl :: lock()
+void MultiModeCtrl::lock()
 {
   pActiveCtrl->lock();
 }
@@ -463,7 +451,7 @@ void MultiModeCtrl :: lock()
 
 ////////////////////////////////////////////////
 // Sets the LockVal for the current active VirtualCtrl
-void MultiModeCtrl :: setLockVal(int16_t jamVal)
+void MultiModeCtrl::setLockVal(int16_t jamVal)
 {
   pActiveCtrl->setLockVal(jamVal);
 }
@@ -472,7 +460,7 @@ void MultiModeCtrl :: setLockVal(int16_t jamVal)
 ////////////////////////////////////////////////
 // Sets the LockVal for the current active VirtualCtrl with its real
 // (measured) value regardless of LockState
-void MultiModeCtrl :: setDefaults()
+void MultiModeCtrl::setDefaults()
 {
   pActiveCtrl->overWrite();
 }
@@ -480,39 +468,39 @@ void MultiModeCtrl :: setDefaults()
 
 ////////////////////////////////////////////////
 // Set the min_ and max_ for the selected VirtualCtrl[sel]
-void MultiModeCtrl :: setRange(uint8_t sel, int16_t max, int16_t min)
+void MultiModeCtrl::setRange(uint8_t sel, int16_t max, int16_t min)
 {
   setRange(pVirtualCtrls[sel], max, min);
 }
 
 
-void MultiModeCtrl :: setRange(VirtualCtrl * pDest, int16_t max, int16_t min)
+void MultiModeCtrl::setRange(std::shared_ptr<VirtualCtrl> pDest, int16_t max, int16_t min)
 {
   LockState tmpState(pDest->getLockState());
   pDest->lock();
   pDest->setMaxAndMin(max, min);
-  if (tmpState != LockState :: STATE_LOCKED)
+  if (tmpState != LockState::STATE_LOCKED)
   {
     pDest->reqUnlock();
   }
 }
 
 
-void MultiModeCtrl :: setRange(uint8_t octaves)
+void MultiModeCtrl::setRange(uint8_t octaves)
 {
   setRange(pActiveCtrl, octaves * 12, 0);
 }
 
 ////////////////////////////////////////////////
 // Copies the LockVal, min_, and max_ from VirtualCtrl[source] into VirtualCtrl[dest]
-void MultiModeCtrl :: copySettings(uint8_t dest, int8_t source)
+void MultiModeCtrl::copySettings(uint8_t dest, int8_t source)
 {
   printf("copying slot %u [val=%i] to slot %u\n", source, pVirtualCtrls[source]->read(), dest);
   copySettings(pVirtualCtrls[dest], pVirtualCtrls[source]);
 }
 
 
-void MultiModeCtrl :: copySettings(VirtualCtrl * pDest, VirtualCtrl * pSource)
+void MultiModeCtrl::copySettings(std::shared_ptr<VirtualCtrl> pDest, std::shared_ptr<VirtualCtrl> pSource)
 {
   if (pDest == pSource)
   {
@@ -523,14 +511,112 @@ void MultiModeCtrl :: copySettings(VirtualCtrl * pDest, VirtualCtrl * pSource)
   pDest->lock();
   pDest->setLockVal(pSource->read());
   setRange(pDest, pSource->getMax(), pSource->getMin());
-  if (tmpState != LockState :: STATE_LOCKED)
+  if (tmpState != LockState::STATE_LOCKED)
   {
     pDest->reqUnlock();
   }
 }
 
-void MultiModeCtrl :: saveActiveCtrl(uint8_t dest)
+void MultiModeCtrl::saveActiveCtrl(uint8_t dest)
 {
   copySettings(pVirtualCtrls[dest], pActiveCtrl);
 }
 
+
+
+ControllerBank::ControllerBank():
+  NUM_BANKS(0),
+  NUM_FADERS(0)
+{
+  ;
+}
+
+ControllerBank::ControllerBank(ControllerBank & proto):
+  NUM_FADERS(proto.NUM_FADERS),
+  NUM_BANKS(proto.NUM_BANKS)
+{
+  for (auto n: proto.sliderMap)
+  {
+    sliderMap.push_back(n);
+  }
+}
+
+ControllerBank::ControllerBank(uint8_t numFaders, uint8_t numBanks, const uint8_t sliderMapping[]):
+  NUM_FADERS(numFaders),
+  NUM_BANKS(numBanks)
+{
+  faderBank.reserve(NUM_BANKS);
+  for (auto n = 0; n < NUM_FADERS; ++n)
+  {
+    sliderMap.push_back(sliderMapping[n]);
+  }
+}
+
+void ControllerBank::init(const uint8_t SPI_DATA_OUT, const uint8_t SPI_DATA_IN, const uint8_t SPI_CLK, const uint8_t ADC_CS)
+{
+  // Don't light up locked faders
+  MCP3208 tmp(SPI_DATA_OUT, SPI_DATA_IN, SPI_CLK);
+  tmp.begin(ADC_CS); // Chip select pin.
+  dbprintf("Fader ADC initialized, CS = pin %d\n", ADC_CS);
+  for (uint8_t ch(0); ch < NUM_FADERS; ++ch)
+  {
+    faderBank.push_back(std::make_shared<MultiModeCtrl>(NUM_BANKS, tmp, sliderMap[ch], 12));
+    faderBank[ch]->setDefaults();
+    faderBank[ch]->saveActiveCtrl(NUM_FADERS - 1 - ch);
+    dbprintf("Fader %u initialized\n", ch);
+  }
+  ONE_OVER_ADC_MAX = 1.0f / faderBank[0]->getMax();
+}
+
+void ControllerBank::saveBank(uint8_t idx)
+{
+  // Saves the pattern register, pattern length, and current fader locations to the selected slot
+  for (uint8_t fd = 0; fd < NUM_FADERS; ++fd)
+  {
+    faderBank[fd]->saveActiveCtrl(idx);
+  }
+}
+
+void ControllerBank::selectBank(uint8_t idx)
+{
+  for (uint8_t fd = 0; fd < NUM_FADERS; ++fd)
+  {
+    faderBank[fd]->selectActiveBank(idx);
+  }
+}
+
+
+uint8_t ControllerBank:: getLockByte()
+{
+  uint8_t lockByte = 0;
+  // Check whether each individual fader is unlocked; don't light them up unless they are
+  for (auto fd(0); fd < NUM_FADERS; ++fd)
+  {
+    read(fd);
+    bitWrite(lockByte, fd, faderBank[fd]->getLockState() == LockState::STATE_UNLOCKED);
+  }
+  return lockByte;
+}
+
+// Sets upper and lower bounds for faders based on desired octave range
+void ControllerBank::setRange(uint8_t octaves)
+{
+  for (auto fader(0); fader < NUM_FADERS; ++fader)
+  {
+    faderBank[fader]->setRange(octaves);
+  }
+}
+
+void ControllerBank::service()
+{
+  // Handle all our hardware inputs
+  for (uint8_t fd = 0; fd < 8; ++fd)
+  {
+    faderBank[fd]->service();
+  }
+}
+
+uint16_t ControllerBank::read(uint8_t ch)
+{
+  return faderBank[ch]->read();
+}

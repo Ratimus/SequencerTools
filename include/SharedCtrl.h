@@ -9,6 +9,10 @@
 
 #include <Arduino.h>
 #include "MCP_ADC.h"
+#include <memory>
+#include <vector>
+#include <RatFuncs.h>
+
 
 // Maximum number of samples to average (higher values smooth noise)
 static const uint8_t MAX_BUFFER_SIZE(128);
@@ -32,7 +36,7 @@ enum LockState
 class HardwareCtrl
 {
 protected:
-  MCP3208*  pADC;
+  std::shared_ptr<MCP3208>  pADC;
   const    uint8_t  ch;
   const    int16_t  adcMax;
 
@@ -46,7 +50,7 @@ public:
 
   // Constructor
   explicit HardwareCtrl(
-    MCP3208* inAdc,
+    MCP3208 & inAdc,
     uint8_t inCh,
     uint8_t numSamps = 1);
 
@@ -65,7 +69,7 @@ public:
 class LockingCtrl
 {
 protected:
-  HardwareCtrl*      pHwCtrl_;
+  std::shared_ptr<HardwareCtrl>     pHwCtrl_;
   volatile LockState state_;
   int16_t min_;
   int16_t max_;
@@ -97,12 +101,10 @@ public:
   // Constructor
   LockingCtrl(){;}
   LockingCtrl(
-    MCP3208 * pADC,
+    MCP3208 & inAdc,
     uint8_t adcChannel,
     int16_t inVal,
     bool createLocked = true);
-
-  ~LockingCtrl();
 
   int16_t getMin();
   int16_t getMax();
@@ -134,7 +136,7 @@ public:
   // Constructor
 VirtualCtrl(): LockingCtrl() {;}
 VirtualCtrl(
-  MCP3208 * pADC,
+  MCP3208 & inAdc,
   uint8_t adcChannel,
   int16_t inSlice,
   int16_t min,
@@ -154,12 +156,12 @@ VirtualCtrl(
 class MultiModeCtrl
 {
   uint8_t numModes_;
-  VirtualCtrl * pActiveCtrl;
+  std::shared_ptr<VirtualCtrl> pActiveCtrl;
 
 public:
-  VirtualCtrl * pVirtualCtrls[8]; // Array of ptrs (NOT a ptr to an array)
+  std::vector<std::shared_ptr<VirtualCtrl>> pVirtualCtrls; // Array of ptrs (NOT a ptr to an array)
 
-  MultiModeCtrl(uint8_t numCtrls, MCP3208 * pADC, uint8_t adcChannel, uint8_t numVals);
+  MultiModeCtrl(uint8_t numCtrls, MCP3208 & inAdc, uint8_t adcChannel, uint8_t numVals);
   uint16_t getLockVal() { return pActiveCtrl->getLockVal(); }
   uint8_t getNumModes();
   int16_t read();
@@ -174,23 +176,51 @@ public:
 
   void setDefaults();
   void setRange(uint8_t mode, int16_t max, int16_t min = 0);
-  void setRange(VirtualCtrl * pDest, int16_t max, int16_t min);
+  void setRange(std::shared_ptr<VirtualCtrl> pDest, int16_t max, int16_t min);
   void setRange(uint8_t octaves);
 
   void copySettings(uint8_t dest, int8_t source);
-  void copySettings(VirtualCtrl * pDest, VirtualCtrl * pSource);
+  void copySettings(std::shared_ptr<VirtualCtrl> pDest, std::shared_ptr<VirtualCtrl> pSource);
   void saveActiveCtrl(uint8_t dest);
-
 
   ~MultiModeCtrl()
   {
-    for (auto idx(0); idx < numModes_; ++idx)
-    {
-      delete pVirtualCtrls[idx];
-      pVirtualCtrls[idx] = 0;
-    }
     pActiveCtrl = 0;
   }
 };
+
+
+////////////////////////////////////////////////
+//
+// *Slaps roof* You can fit so many MultiModeControls in this baby.
+//
+class ControllerBank
+{
+  uint8_t bankIdx;
+  std::vector<std::shared_ptr<MultiModeCtrl>> faderBank;
+  float ONE_OVER_ADC_MAX;
+  uint8_t NUM_BANKS;
+  uint8_t NUM_FADERS;
+  std::shared_ptr<MCP3208> adc;
+  std::vector<uint8_t> sliderMap;
+
+public:
+  ControllerBank();
+  ControllerBank(ControllerBank & proto);
+  ControllerBank(uint8_t numFaders, uint8_t numBanks, const uint8_t sliderMapping[]);
+
+  void init(const uint8_t SPI_DATA_OUT, const uint8_t SPI_DATA_IN, const uint8_t SPI_CLK, const uint8_t ADC_CS);
+
+  void saveBank(uint8_t idx);
+  void selectBank(uint8_t idx);
+
+  // Sets upper and lower bounds for faders based on desired octave range
+  void setRange(uint8_t octaves);
+
+  void service();
+  uint16_t read(uint8_t ch);
+  uint8_t getLockByte();
+};
+
 
 #endif

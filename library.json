@@ -1,6 +1,6 @@
 {
   "name": "SequencerTools",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "An Arduino library of synchronization utilities and interfaces to common controls for building synthesizers and sequencers",
   "keywords": "sequencer, drum machine, debounce, rotary encoder",
   "repository":
