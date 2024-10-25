@@ -13,10 +13,11 @@ class MultiChannelDac
   std::vector<channel_ptr> DAC;
   const uint8_t NUM_DAC_CHANNELS;
   bool ready;
+  std::shared_ptr<Adafruit_MCP4728> MCP4728;
 
 public:
 
-  MultiChannelDac(uint8_t numCh);
+  MultiChannelDac(uint8_t numCh, Adafruit_MCP4728 * pMCP = nullptr);
 
   void setChannelNote(uint8_t channel, uint8_t note);
 

@@ -1,8 +1,9 @@
 #include "OutputDac.h"
 #include <Adafruit_MCP4728.h>
 
-MultiChannelDac::MultiChannelDac(uint8_t numCh):
+MultiChannelDac::MultiChannelDac(uint8_t numCh, Adafruit_MCP4728 * pMCP):
   NUM_DAC_CHANNELS(numCh),
+  MCP4728(pMCP),
   ready(false)
 {
   DAC.reserve(NUM_DAC_CHANNELS);
@@ -15,15 +16,20 @@ void MultiChannelDac::setChannelNote(uint8_t channel, uint8_t note)
     return;
   }
 
-  *DAC[channel] = (uint16_t)note;
-  DAC[channel]->clock();
+  DAC[channel]->clockIn((uint16_t)note);
 }
 
 void MultiChannelDac::init()
 {
-  if (ready) return;
+  if (ready)
+  {
+    return;
+  }
 
-  std::shared_ptr<Adafruit_MCP4728> MCP4728 = std::make_shared<Adafruit_MCP4728>();
+  if (MCP4728 == nullptr)
+  {
+    MCP4728 = std::make_shared<Adafruit_MCP4728>();
+  }
 
   // Set up external
   dbprintln("MCP4728 test...");
@@ -39,9 +45,7 @@ void MultiChannelDac::init()
 
   for (uint8_t ch(0); ch < NUM_DAC_CHANNELS; ++ch)
   {
-    channel_ptr newChannel;
-    newChannel.reset(new OutputChannel(ch, MCP4728));
-    DAC.push_back(newChannel);
+    DAC.push_back(std::make_shared<OutputChannel>(ch, MCP4728));
   }
 
   ready = true;

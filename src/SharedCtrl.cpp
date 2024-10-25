@@ -62,9 +62,8 @@ void HardwareCtrl::service()
 // Report 'ready' if buffer is full
 bool HardwareCtrl::isReady()
 {
-  bool retVal;
   cli();
-  retVal = bufferReady;
+  bool retVal = bufferReady;
   sei();
   return retVal;
 }
@@ -90,20 +89,21 @@ int16_t HardwareCtrl::read()
     samps = buffSize;
   }
   sei();
+
   if (samps == 0)
   {
     return retVal;
   }
 
   // Take the mean of all samples in the buffer
+  cli();
   for (uint8_t ii = 0; ii < buffSize; ++ii)
   {
-    cli();
     sum_ += buff[ii];
-    sei();
   }
+  sei();
 
-  return (sum_ / (int16_t)buffSize);
+  return int16_t(sum_ / (int16_t)buffSize);
 }
 
 

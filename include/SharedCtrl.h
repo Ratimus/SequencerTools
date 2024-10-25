@@ -36,14 +36,14 @@ enum LockState
 class HardwareCtrl
 {
 protected:
-  std::shared_ptr<MCP3208>  pADC;
+  std::shared_ptr<MCP3208> pADC;
   const    uint8_t  ch;
   const    int16_t  adcMax;
 
-  uint8_t  buffSize;
+           uint8_t  buffSize;
   volatile int16_t  buff[MAX_BUFFER_SIZE];
   volatile uint8_t  sampleIdx;
-  int64_t  sum_;
+           int64_t  sum_;
   volatile bool bufferReady;
 
 public:
@@ -56,6 +56,7 @@ public:
 
   void service();
   bool isReady();
+
   virtual int16_t read();
   virtual int16_t maxValue();
 };
