@@ -178,6 +178,7 @@ public:
   int16_t   read();
 
   void      selectActiveBank(uint8_t bank);
+  void      reqUnlock();
   void      lock();
 
   void      setLockVal(int16_t jamVal);

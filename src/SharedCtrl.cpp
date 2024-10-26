@@ -466,6 +466,14 @@ void MultiModeCtrl::lock()
 
 
 ////////////////////////////////////////////////
+// Request to unlock the active VirtualCtrl
+void MultiModeCtrl::reqUnlock()
+{
+  pActiveCtrl->reqUnlock();
+}
+
+
+////////////////////////////////////////////////
 // Sets the LockVal for the current active VirtualCtrl
 void MultiModeCtrl::setLockVal(int16_t jamVal)
 {
@@ -682,7 +690,7 @@ void ControllerBank::moreRange()
 void ControllerBank::lessRange()
 {
   uint8_t currentRange = getRange();
-  if (currentRange == 0)
+  if (currentRange == 1)
   {
     return;
   }
@@ -690,7 +698,32 @@ void ControllerBank::lessRange()
   --currentRange;
   for (auto fader: faderBank)
   {
+    int16_t   val       = fader->read();
+    LockState prevState = fader->getLockState();
+
+    // If setRange would put the fader's lockval outside its range, it would
+    // scale that value back in range. This may or may not be musical, so let's
+    // pre-emptively scale it down by an octave instead
+    while (val > currentRange * 12)
+    {
+      val -= 12;
+    }
+
+    if (val != fader->read())
+    {
+      fader->lock();
+      fader->setLockVal(val);
+    }
+
     fader->setRange(currentRange);
+
+    // Set range will check to see if we were locked when it was called, but we
+    // may have locked it already, so we'll have to check here based on the state
+    // prior to setting the range
+      if (prevState != LockState::STATE_LOCKED)
+      {
+        fader->reqUnlock();
+      }
   }
 }
 
