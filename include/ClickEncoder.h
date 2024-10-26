@@ -55,21 +55,14 @@ public:
   void    updateButton(void);
 
   // Get current state and free for further updates
-  int16_t getClicks(void);
+  int16_t      getClicks(void);
   ButtonState  getButton(void);
 
   void setDoubleClickEnabled(const bool &d) { doubleClickEnabled = d; }
   const bool getDoubleClickEnabled() { return doubleClickEnabled; }
   const bool getAccelerationEnabled() { return accelerationEnabled; }
 
-  void setAccelerationEnabled(const bool &a)
-  {
-    accelerationEnabled = a;
-    if (accelerationEnabled == false)
-    {
-      acceleration = 0;
-    }
-  }
+  void setAccelerationEnabled(const bool &a);
 
 
 private:

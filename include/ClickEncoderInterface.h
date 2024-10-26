@@ -52,13 +52,7 @@ public:
 
   inline void setSensivity(int s) { sensivity = s; }
 
-  void flush()
-  {
-    btnState = ButtonState::Open;
-    enc.getClicks();
-    enc.getButton();
-    oldPos = pos;
-  }
+  void flush();
 };
 
 #endif

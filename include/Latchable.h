@@ -75,7 +75,10 @@ public:
   // Latches internal state to output
   virtual T clock(void)
   {
-    if (enabled) { ParamQ = ParamS; }
+    if (enabled)
+    {
+      ParamQ = ParamS;
+    }
     return out;
   }
 

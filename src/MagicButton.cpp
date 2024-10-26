@@ -8,21 +8,25 @@
 
 // Read, debounce, and set output state. Once set, final output state will
 // persist until reported and reset by separate call to readAndFree()
-void MagicButton :: service()
+void MagicButton::service()
 {
-  if (pin < 0) return;
+  if (pin < 0)
+  {
+    return;
+  }
 
   buff = (buff << 1) | (pullup ^ digitalRead(pin));
+  long serviceTime = millis();
 
   cli();
-  if (millis() - debounceTS >= dbnceIntvl)
+  if (serviceTime - debounceTS >= dbnceIntvl)
   {
     if (!buttonDown)
     {
       if ((buff & debounceUP) == debounceUP)
       {
         buttonDown = 1;
-        debounceTS = millis();
+        debounceTS = serviceTime;
       }
     }
     else
@@ -30,14 +34,12 @@ void MagicButton :: service()
       if ((buff | debounceDN) == debounceDN)
       {
         buttonDown = 0;
-        debounceTS = millis();
+        debounceTS = serviceTime;
       }
     }
   }
-  sei();
 
-  cli();
-  long timeSinceChange(millis() - debounceTS);
+  long timeSinceChange = serviceTime - debounceTS;
   switch(state[0])
   {
     // Register initial button state change
@@ -193,7 +195,7 @@ void MagicButton :: service()
 // Report current state and free to record further clicks.
 // State only resets if button has been released, else
 // HELD or PRESSED will be returned on each call
-ButtonState MagicButton :: readAndFree(void)
+ButtonState MagicButton::readAndFree(void)
 {
   ButtonState retVal;
   cli();

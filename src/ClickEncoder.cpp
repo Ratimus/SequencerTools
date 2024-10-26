@@ -143,7 +143,7 @@ void ClickEncoder::service(void)
 // copy the button's state into it and free the hw button
 // for further updates. Don't free *our* encBtnState variable
 // until someone else reads *us*
-void ClickEncoder :: updateButton()
+void ClickEncoder::updateButton()
 {
   hwButton.service();
   if (btnStateCleared)
@@ -155,7 +155,7 @@ void ClickEncoder :: updateButton()
 }
 // ----------------------------------------------------------------------------
 
-int16_t ClickEncoder :: getClicks(void)
+int16_t ClickEncoder::getClicks(void)
 {
   int16_t val;
 
@@ -189,9 +189,18 @@ int16_t ClickEncoder :: getClicks(void)
 // ----------------------------------------------------------------------------
 // Resets buttonState and returns value prior to reset; encBtnState output state
 // persists until this function is called && encBtnState has been released
-ButtonState ClickEncoder :: getButton(void)
+ButtonState ClickEncoder::getButton(void)
 {
   ButtonState ret = this->encBtnState;
   btnStateCleared = true;
   return ret;
+}
+
+void ClickEncoder::setAccelerationEnabled(const bool &a)
+{
+  accelerationEnabled = a;
+  if (accelerationEnabled == false)
+  {
+    acceleration = 0;
+  }
 }

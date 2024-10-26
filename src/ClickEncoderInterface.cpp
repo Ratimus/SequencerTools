@@ -7,7 +7,7 @@
 #include "ClickEncoderInterface.h"
 
 // Constructor
-ClickEncoderInterface :: ClickEncoderInterface(ClickEncoder &rEnc, int sense):
+ClickEncoderInterface::ClickEncoderInterface(ClickEncoder &rEnc, int sense):
   enc(rEnc),
   sensivity(sense)
 {
@@ -16,7 +16,7 @@ ClickEncoderInterface :: ClickEncoderInterface(ClickEncoder &rEnc, int sense):
   update();
 }
 
-encEvnts ClickEncoderInterface :: getEvent(void)
+encEvnts ClickEncoderInterface::getEvent(void)
 {
   static bool heldClicked(0);
   ButtonState prevState = btnState;
@@ -86,6 +86,14 @@ encEvnts ClickEncoderInterface :: getEvent(void)
   }
 
   return encEvnts::NUM_ENC_EVNTS;
+}
+
+void ClickEncoderInterface::flush()
+{
+  btnState = ButtonState::Open;
+  enc.getClicks();
+  enc.getButton();
+  oldPos = pos;
 }
 // ButtonStates you may see in the wild:
 //  Open

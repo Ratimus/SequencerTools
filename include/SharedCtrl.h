@@ -50,7 +50,7 @@ public:
 
   // Constructor
   explicit HardwareCtrl(
-    MCP3208 & inAdc,
+    std::shared_ptr<MCP3208> inAdc,
     uint8_t inCh,
     uint8_t numSamps = 1);
 
@@ -70,7 +70,7 @@ public:
 class LockingCtrl
 {
 protected:
-  std::shared_ptr<HardwareCtrl>     pHwCtrl_;
+  std::shared_ptr<HardwareCtrl> pHwCtrl_;
   volatile LockState state_;
   int16_t min_;
   int16_t max_;
@@ -83,18 +83,16 @@ public:
   void service() { pHwCtrl_->service(); }
 
   ////////////////////////////////////////////////
-  // Double equal all the way across the skyh
-  friend bool operator== (const LockingCtrl& L1, const LockingCtrl& L2)
+  // Double equal all the way across the sky
+  friend bool operator == (const LockingCtrl& L1, const LockingCtrl& L2)
   {
-    // Serial.printf("L1: %p;  L2: %p\n", &L1, &L2);
     return (&L1 == &L2);
   }
 
   ////////////////////////////////////////////////
   // Some objects are more equal than others
-  friend bool operator!= (const LockingCtrl& L1, const LockingCtrl& L2)
+  friend bool operator != (const LockingCtrl& L1, const LockingCtrl& L2)
   {
-    // Serial.printf("L1: %p;  L2: %p\n", &L1, &L2);
     return (&L1 != &L2);
   }
 
@@ -102,23 +100,23 @@ public:
   // Constructor
   LockingCtrl(){;}
   LockingCtrl(
-    MCP3208 & inAdc,
+    std::shared_ptr<MCP3208> inAdc,
     uint8_t adcChannel,
     int16_t inVal,
     bool createLocked = true);
 
-  int16_t getMin();
-  int16_t getMax();
-  int16_t getLockVal();
-  LockState getLockState();
-  void overWrite();
-  bool isReady();
+  int16_t           getMin();
+  int16_t           getMax();
+  int16_t           getLockVal();
+  LockState         getLockState();
+  void              overWrite();
+  bool              isReady();
 
-  virtual void lock();
-  virtual int16_t read();
+  virtual void      lock();
+  virtual int16_t   read();
   virtual LockState reqUnlock();
-  virtual void setLockVal(int16_t jamVal);
-  virtual int16_t peekMeasuredVal();
+  virtual void      setLockVal(int16_t jamVal);
+  virtual int16_t   peekMeasuredVal();
 
 };
 
@@ -135,18 +133,19 @@ class VirtualCtrl : public LockingCtrl
 public:
 
   // Constructor
-VirtualCtrl(): LockingCtrl() {;}
-VirtualCtrl(
-  MCP3208 & inAdc,
-  uint8_t adcChannel,
-  int16_t inSlice,
-  int16_t min,
-  int16_t max = 0,
-  bool createLocked = true);
+  VirtualCtrl(): LockingCtrl() {;}
+  VirtualCtrl(
+    std::shared_ptr<MCP3208> inAdc,
+    uint8_t adcChannel,
+    int16_t inSlice,
+    int16_t max,
+    int16_t min = 0,
+    bool    createLocked = true);
 
-  int16_t peekMeasuredVal();
-  int16_t read();
-  void setMaxAndMin(int16_t min, int16_t max = 0);
+    int16_t peekMeasuredVal();
+    int16_t read();
+    void    setMaxAndMin(int16_t max,
+                         int16_t min = 0);
 };
 
 
@@ -162,27 +161,42 @@ class MultiModeCtrl
 public:
   std::vector<std::shared_ptr<VirtualCtrl>> pVirtualCtrls; // Array of ptrs (NOT a ptr to an array)
 
-  MultiModeCtrl(uint8_t numCtrls, MCP3208 & inAdc, uint8_t adcChannel, uint8_t numVals);
-  uint16_t getLockVal() { return pActiveCtrl->getLockVal(); }
-  uint8_t getNumModes();
-  int16_t read();
-  int16_t getMin() { return pActiveCtrl->getMin(); }
-  int16_t getMax() { return pActiveCtrl->getMax(); }
-  LockState getLockState() { return pActiveCtrl->getLockState(); }
-  void selectActiveBank(uint8_t bank);
-  void lock();
+  MultiModeCtrl(uint8_t numCtrls,
+                std::shared_ptr<MCP3208> inAdc,
+                uint8_t adcChannel,
+                uint8_t numVals);
 
-  void service() { pActiveCtrl->service(); }
-  void setLockVal(int16_t jamVal);
+  uint16_t  getLockVal()    { return pActiveCtrl->getLockVal(); }
+  int16_t   getMin()        { return pActiveCtrl->getMin(); }
+  int16_t   getMax()        { return pActiveCtrl->getMax(); }
+  LockState getLockState()  { return pActiveCtrl->getLockState(); }
+  uint8_t   getRange()      { return getMax() - getMin(); }
 
-  void setDefaults();
-  void setRange(uint8_t mode, int16_t max, int16_t min = 0);
-  void setRange(std::shared_ptr<VirtualCtrl> pDest, int16_t max, int16_t min);
-  void setRange(uint8_t octaves);
+  void      service()       { pActiveCtrl->service(); }
 
-  void copySettings(uint8_t dest, int8_t source);
-  void copySettings(std::shared_ptr<VirtualCtrl> pDest, std::shared_ptr<VirtualCtrl> pSource);
-  void saveActiveCtrl(uint8_t dest);
+  uint8_t   getNumModes();
+  int16_t   read();
+
+  void      selectActiveBank(uint8_t bank);
+  void      lock();
+
+  void      setLockVal(int16_t jamVal);
+
+  void      setDefaults();
+
+  void      setRange(uint8_t octaves);
+  void      setRange(uint8_t mode,
+                     int16_t max,
+                     int16_t min = 0);
+  void      setRange(std::shared_ptr<VirtualCtrl> pDest,
+                     int16_t max,
+                     int16_t min);
+
+  void      copySettings(uint8_t dest,
+                         int8_t source);
+  void      copySettings(std::shared_ptr<VirtualCtrl> pDest,
+                         std::shared_ptr<VirtualCtrl> pSource);
+  void      saveActiveCtrl(uint8_t dest);
 
   ~MultiModeCtrl()
   {
@@ -202,8 +216,13 @@ class ControllerBank
   float ONE_OVER_ADC_MAX;
   uint8_t NUM_BANKS;
   uint8_t NUM_FADERS;
-  std::shared_ptr<MCP3208> adc;
+  std::shared_ptr<MCP3208> pADC;
   std::vector<uint8_t> sliderMap;
+  static const uint8_t MAX_RANGE = 3;
+
+  // Sets upper and lower bounds for faders based on desired octave range
+  void setRange(uint8_t octaves);
+  void init();
 
 public:
   ControllerBank();
@@ -211,15 +230,15 @@ public:
   ControllerBank(uint8_t numFaders, uint8_t numBanks, const uint8_t sliderMapping[]);
 
   void init(const uint8_t SPI_DATA_OUT, const uint8_t SPI_DATA_IN, const uint8_t SPI_CLK, const uint8_t ADC_CS);
-
   void saveBank(uint8_t idx);
   void selectBank(uint8_t idx);
-
-  // Sets upper and lower bounds for faders based on desired octave range
-  void setRange(uint8_t octaves);
-
+  void moreRange();
+  void lessRange();
+  uint8_t getRange();
   void service();
   uint16_t read(uint8_t ch);
+  bool isLocked(uint8_t ch);
+
   uint8_t getLockByte();
 };
 

@@ -12,10 +12,10 @@
 ////////////////////////////////////////////////
 // Constructor
 HardwareCtrl::HardwareCtrl(
-  MCP3208& inAdc,
+  std::shared_ptr<MCP3208> inAdc,
   uint8_t inCh,
   uint8_t numSamps):
-    pADC       (std::make_shared<MCP3208>(inAdc)),
+    pADC       (inAdc),
     ch         (inCh),
     adcMax     (pADC->maxValue()),
     buffSize   (constrain(numSamps, 1, MAX_BUFFER_SIZE-1)),
@@ -122,12 +122,12 @@ int16_t HardwareCtrl::maxValue()
 ////////////////////////////////////////////////
 // Constructor
 LockingCtrl::LockingCtrl(
-  MCP3208 & inAdc,
+  std::shared_ptr<MCP3208> inAdc,
   uint8_t adcChannel,
   int16_t inVal,
   bool    createLocked):
     min_    (0),
-    max_    (inAdc.maxValue()),
+    max_    (inAdc->maxValue()),
     lockVal_ (inVal)
 {
   pHwCtrl_ = std::make_shared<HardwareCtrl>(inAdc, adcChannel, MAX_BUFFER_SIZE);
@@ -299,7 +299,7 @@ bool LockingCtrl::isReady()
 ////////////////////////////////////////////////
 // Constructor
 VirtualCtrl::VirtualCtrl(
-  MCP3208 & inAdc,
+  std::shared_ptr<MCP3208> inAdc,
   uint8_t adcChannel,
   int16_t inSlice,
   int16_t max,
@@ -312,9 +312,9 @@ VirtualCtrl::VirtualCtrl(
     pHwCtrl_->service();
   }
   threshInt_ = static_cast<uint16_t>( (uint16_t)(DEFAULT_THRESHOLD * max_ + 0.5) );
-  state_ = STATE_LOCKED;
-  min_ = min;
-  max_ = max;
+  state_     = STATE_LOCKED;
+  min_       = min;
+  max_       = max;
   if (!createLocked)
   {
     reqUnlock();
@@ -359,15 +359,15 @@ int16_t VirtualCtrl::read()
     return lockVal_;
   }
 
-  int16_t rawHwVal(pHwCtrl_->read());
-  int16_t rawHwSlice(peekMeasuredVal());
+  int16_t rawHwVal   = pHwCtrl_->read();
+  int16_t rawHwSlice = peekMeasuredVal();
   if (tmpState == STATE_UNLOCKED)
   {
     return rawHwSlice;
   }
 
   // STATE_UNLOCK_REQUESTED
-  int16_t targetVal(sliceToVal(lockVal_));
+  int16_t targetVal  = sliceToVal(lockVal_);
   // if (abs(targetVal - rawHwVal) < threshInt_)
   if (rawHwSlice == lockVal_)
   {
@@ -384,7 +384,11 @@ int16_t VirtualCtrl::read()
 // Figure out what ADC reading you'd need to match the given control value [tgtSlice]
 int16_t VirtualCtrl::sliceToVal(int16_t tgtSlice)
 {
-  return map(tgtSlice, min_, max_ + 1, 0, pHwCtrl_->maxValue() + 1);
+  return map(tgtSlice,
+             min_,
+             max_ + 1,
+             0,
+             pHwCtrl_->maxValue() + 1);
 }
 
 
@@ -392,7 +396,11 @@ int16_t VirtualCtrl::sliceToVal(int16_t tgtSlice)
 // Get the control value corresponding to a given ADC value [val]
 int16_t VirtualCtrl::valToSlice(int16_t val)
 {
-  return map(val, 0, pHwCtrl_->maxValue() + 1, min_, max_ + 1);
+  return map(val,
+             0,
+             pHwCtrl_->maxValue() + 1,
+             min_,
+             max_ + 1);
 }
 
 
@@ -401,19 +409,27 @@ int16_t VirtualCtrl::valToSlice(int16_t val)
 // in which only one virtual control is active at a time
 MultiModeCtrl::MultiModeCtrl(
   uint8_t numCtrls,
-  MCP3208 & inAdc,
+  std::shared_ptr<MCP3208> inAdc,
   uint8_t adcChannel,
   uint8_t numVals):
     numModes_(numCtrls)
 {
   for (auto idx(0); idx < numModes_; ++idx)
   {
-    pVirtualCtrls.push_back(std::make_shared<VirtualCtrl>(inAdc, adcChannel, numVals / 2, numVals));
+    pVirtualCtrls.push_back(std::make_shared<VirtualCtrl>(inAdc,
+                                                          adcChannel,
+                                                          numVals / 2,
+                                                          numVals));
   }
   // This is not merely a pointer to an existing control because we want to edit and modify it
   // without affecting the control it was originally based on. That's why we need to copy the pDest
   // fields into it rather than pointing it somewhere else
-  pActiveCtrl = std::make_shared<VirtualCtrl>(inAdc, adcChannel, numVals / 2, numVals, 0, false);
+  pActiveCtrl = std::make_shared<VirtualCtrl>(inAdc,
+                                              adcChannel,
+                                              numVals / 2,
+                                              numVals,
+                                              0,
+                                              false);
 }
 
 
@@ -500,7 +516,8 @@ void MultiModeCtrl::copySettings(uint8_t dest, int8_t source)
 }
 
 
-void MultiModeCtrl::copySettings(std::shared_ptr<VirtualCtrl> pDest, std::shared_ptr<VirtualCtrl> pSource)
+void MultiModeCtrl::copySettings(std::shared_ptr<VirtualCtrl> pDest,
+                                 std::shared_ptr<VirtualCtrl> pSource)
 {
   if (pDest == pSource)
   {
@@ -523,7 +540,9 @@ void MultiModeCtrl::saveActiveCtrl(uint8_t dest)
 }
 
 
-
+////////////////////////////////////////////////
+// Class to organize a number of MultiMode controls,
+// grouping them together by mode
 ControllerBank::ControllerBank():
   NUM_BANKS(0),
   NUM_FADERS(0)
@@ -533,17 +552,25 @@ ControllerBank::ControllerBank():
 
 ControllerBank::ControllerBank(ControllerBank & proto):
   NUM_FADERS(proto.NUM_FADERS),
-  NUM_BANKS(proto.NUM_BANKS)
+  NUM_BANKS(proto.NUM_BANKS),
+  bankIdx(proto.bankIdx),
+  ONE_OVER_ADC_MAX(proto.ONE_OVER_ADC_MAX),
+  pADC(proto.pADC)
 {
-  for (auto n: proto.sliderMap)
+  std::copy(proto.sliderMap.begin(), proto.sliderMap.end(), std::back_insert_iterator(this->sliderMap));
+
+  for (auto fader: proto.faderBank)
   {
-    sliderMap.push_back(n);
+    std::copy(proto.faderBank.begin(), proto.faderBank.end(), std::back_insert_iterator(this->faderBank));
   }
 }
 
-ControllerBank::ControllerBank(uint8_t numFaders, uint8_t numBanks, const uint8_t sliderMapping[]):
+ControllerBank::ControllerBank(uint8_t numFaders,
+                               uint8_t numBanks,
+                               const uint8_t sliderMapping[]):
   NUM_FADERS(numFaders),
-  NUM_BANKS(numBanks)
+  NUM_BANKS(numBanks),
+  pADC(nullptr)
 {
   faderBank.reserve(NUM_BANKS);
   for (auto n = 0; n < NUM_FADERS; ++n)
@@ -552,15 +579,18 @@ ControllerBank::ControllerBank(uint8_t numFaders, uint8_t numBanks, const uint8_
   }
 }
 
-void ControllerBank::init(const uint8_t SPI_DATA_OUT, const uint8_t SPI_DATA_IN, const uint8_t SPI_CLK, const uint8_t ADC_CS)
+void ControllerBank::init()
 {
-  // Don't light up locked faders
-  MCP3208 tmp(SPI_DATA_OUT, SPI_DATA_IN, SPI_CLK);
-  tmp.begin(ADC_CS); // Chip select pin.
-  dbprintf("Fader ADC initialized, CS = pin %d\n", ADC_CS);
+  if (pADC == nullptr)
+  {
+    return;
+  }
+
   for (uint8_t ch(0); ch < NUM_FADERS; ++ch)
   {
-    faderBank.push_back(std::make_shared<MultiModeCtrl>(NUM_BANKS, tmp, sliderMap[ch], 12));
+    faderBank.push_back(std::make_shared<MultiModeCtrl>(NUM_BANKS,
+                                                        pADC,
+                                                        sliderMap[ch], 12));
     faderBank[ch]->setDefaults();
     faderBank[ch]->saveActiveCtrl(NUM_FADERS - 1 - ch);
     dbprintf("Fader %u initialized\n", ch);
@@ -568,32 +598,49 @@ void ControllerBank::init(const uint8_t SPI_DATA_OUT, const uint8_t SPI_DATA_IN,
   ONE_OVER_ADC_MAX = 1.0f / faderBank[0]->getMax();
 }
 
+void ControllerBank::init(const uint8_t SPI_DATA_OUT,
+                          const uint8_t SPI_DATA_IN,
+                          const uint8_t SPI_CLK,
+                          const uint8_t ADC_CS)
+{
+  pADC = std::make_shared<MCP3208>(SPI_DATA_OUT,
+                                   SPI_DATA_IN,
+                                   SPI_CLK);
+  pADC->begin(ADC_CS); // Chip select pin.
+  dbprintf("Fader ADC initialized, CS = pin %d\n", ADC_CS);
+  init();
+}
+
 void ControllerBank::saveBank(uint8_t idx)
 {
   // Saves the pattern register, pattern length, and current fader locations to the selected slot
-  for (uint8_t fd = 0; fd < NUM_FADERS; ++fd)
+  for (auto fader: faderBank)
   {
-    faderBank[fd]->saveActiveCtrl(idx);
+    fader->saveActiveCtrl(idx);
   }
 }
 
 void ControllerBank::selectBank(uint8_t idx)
 {
-  for (uint8_t fd = 0; fd < NUM_FADERS; ++fd)
+  for (auto fader: faderBank)
   {
-    faderBank[fd]->selectActiveBank(idx);
+    fader->selectActiveBank(idx);
   }
 }
 
-
 uint8_t ControllerBank:: getLockByte()
 {
+  // TODO: if espressif ever fully supports [C++ >= 20], switch to
+  // { for (auto [index, fader] : ranges::views::enumerate(faderBank))}
+  uint8_t index    = 0;
   uint8_t lockByte = 0;
   // Check whether each individual fader is unlocked; don't light them up unless they are
-  for (auto fd(0); fd < NUM_FADERS; ++fd)
+  for (auto fader: faderBank)
   {
-    read(fd);
-    bitWrite(lockByte, fd, faderBank[fd]->getLockState() == LockState::STATE_UNLOCKED);
+    bitWrite(lockByte,
+             index,
+             isLocked(index));
+    ++index;
   }
   return lockByte;
 }
@@ -601,9 +648,49 @@ uint8_t ControllerBank:: getLockByte()
 // Sets upper and lower bounds for faders based on desired octave range
 void ControllerBank::setRange(uint8_t octaves)
 {
-  for (auto fader(0); fader < NUM_FADERS; ++fader)
+  if ((octaves >= MAX_RANGE) || (octaves == 0))
   {
-    faderBank[fader]->setRange(octaves);
+    return;
+  }
+
+  for (auto fader: faderBank)
+  {
+    fader->setRange(octaves);
+  }
+}
+
+uint8_t ControllerBank::getRange()
+{
+  return faderBank[0]->getRange() / 12;
+}
+
+void ControllerBank::moreRange()
+{
+  uint8_t currentRange = getRange();
+  if (currentRange == MAX_RANGE)
+  {
+    return;
+  }
+
+  ++currentRange;
+  for (auto fader: faderBank)
+  {
+    fader->setRange(currentRange);
+  }
+}
+
+void ControllerBank::lessRange()
+{
+  uint8_t currentRange = getRange();
+  if (currentRange == 0)
+  {
+    return;
+  }
+
+  --currentRange;
+  for (auto fader: faderBank)
+  {
+    fader->setRange(currentRange);
   }
 }
 
@@ -619,4 +706,10 @@ void ControllerBank::service()
 uint16_t ControllerBank::read(uint8_t ch)
 {
   return faderBank[ch]->read();
+}
+
+bool ControllerBank::isLocked(uint8_t ch)
+{
+    read(ch);
+    return faderBank[ch]->getLockState() == LockState::STATE_UNLOCKED;
 }
