@@ -10,11 +10,13 @@
 #ifndef EncoderWrapper_H
 #define EncoderWrapper_H
 
+#ifdef __rotaryEventIn_h__
+
 #include <Arduino.h>
 #include "ClickEncoderInterface.h"
+#include <menuDefs.h>
 #include <RotaryEvent.h>
 
-#ifdef __rotaryEventIn_h__
 namespace Menu
 {
 class EncoderWrapper : public menuIn
@@ -47,7 +49,39 @@ public:
 
   int peek(void)
   {
-    return _evt;
+    switch(_evt)
+    {
+      case encEvnts::Click:
+        REI.registerEvent(RotaryEvent::EventType::BUTTON_CLICKED);
+        return options->navCodes[enterCmd].ch;
+
+      case encEvnts::DblClick:
+        REI.registerEvent(RotaryEvent::EventType::BUTTON_DOUBLE_CLICKED);
+        return options->navCodes[escCmd].ch;
+
+      case encEvnts::Right:
+      case encEvnts::ShiftRight:
+        REI.registerEvent(RotaryEvent::EventType::ROTARY_CW);
+        return options->navCodes[downCmd].ch;
+
+      case encEvnts::Left:
+      case encEvnts::ShiftLeft:
+        REI.registerEvent(RotaryEvent::EventType::ROTARY_CCW);
+        return options->navCodes[upCmd].ch;
+
+      case encEvnts::ClickHold:
+        REI.registerEvent(RotaryEvent::EventType::BUTTON_DOUBLE_CLICKED);
+        return options->navCodes[escCmd].ch;
+
+      case encEvnts::Hold:
+      case encEvnts::Press:
+        REI.registerEvent(RotaryEvent::EventType::BUTTON_LONG_PRESSED);
+        return options->navCodes[idxCmd].ch;  // Experiment; I don't even know what this does
+
+      case encEvnts::NUM_ENC_EVNTS:
+      default:
+        return -1;
+    }
   }
 
   int read()
