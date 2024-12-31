@@ -8,7 +8,7 @@
 #define MagicButton_h
 
 #include <Arduino.h>
-
+// #define DEBUG_BUTTON_STATES
 
 typedef enum Button_e
 {
@@ -58,14 +58,19 @@ private:
   volatile ButtonState state[2];
   volatile bool buttonDown;  // Raw data. We don't need to see it, we don't want to see it.
   volatile bool outputCleared;
-  volatile long debounceTS;
+  volatile long long debounceTS;
   volatile uint16_t buff;        // Moving window to record multiple readings
+#ifdef DEBUG_BUTTON_STATES
+  ButtonState tmpState[2];
+#endif
 
 public:
   // Constructor
-  MagicButton(uint8_t pin, bool pullup = 1, bool doubleClickable = 1):  // Active LOW if pullup == TRUE
-    pin(pin),
-    pullup(pullup)
+  MagicButton(uint8_t pin,
+              bool pullup,
+              bool doubleClickable):  // Active LOW if pullup == TRUE
+      pin(pin),
+      pullup(pullup)
   {
     buff       = 0;
     debounceTS = 0;
@@ -75,12 +80,11 @@ public:
     state[1]   = state[0];
     doubleClickEnabled = doubleClickable;
     outputCleared = true;
-
     pinMode(pin, pullup ? INPUT_PULLUP : INPUT);
   }
 
   void service();
-  ButtonState readAndFree();
+  ButtonState read();
 };
 
 

@@ -43,7 +43,7 @@ public:
 //   dbprintf("ch: %u\n", selch);
 //   while (true)
 //   {
-//     if (writeHigh.readAndFree())
+//     if (writeHigh.read())
 //     {
 //       writeRawValToDac(selch, 0);
 //       ++selch;
@@ -70,7 +70,7 @@ public:
 //       outval = 4095;
 //     }
 //     output.setChannelVal(selch, outval);
-//     if (writeLow.readAndFree())
+//     if (writeLow.read())
 //     {
 //       dbprintf("%u\n", outval);
 //     }

@@ -5,9 +5,10 @@
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
 #include "MagicButton.h"
+#include <DirectIO.h>
 
 // Read, debounce, and set output state. Once set, final output state will
-// persist until reported and reset by separate call to readAndFree()
+// persist until reported and reset by separate call to read()
 void MagicButton::service()
 {
   if (pin < 0)
@@ -15,18 +16,22 @@ void MagicButton::service()
     return;
   }
 
-  buff = (buff << 1) | (pullup ^ digitalRead(pin));
-  long serviceTime = millis();
+  long long timeStamp = 0;
 
-  cli();
-  if (serviceTime - debounceTS >= dbnceIntvl)
+  // Shift buffer by one and tack the current value on the end
+  buff = (buff << 1) | (pullup ^ (bool)directRead(pin));
+
+  timeStamp = millis();
+
+  if (   (timeStamp >= (long long)debounceTS)
+      && ((timeStamp - (long long)debounceTS) >= (long long)dbnceIntvl) )
   {
     if (!buttonDown)
     {
       if ((buff & debounceUP) == debounceUP)
       {
         buttonDown = 1;
-        debounceTS = serviceTime;
+        debounceTS = timeStamp;
       }
     }
     else
@@ -34,27 +39,32 @@ void MagicButton::service()
       if ((buff | debounceDN) == debounceDN)
       {
         buttonDown = 0;
-        debounceTS = serviceTime;
+        debounceTS = timeStamp;
       }
     }
   }
 
-  long timeSinceChange = serviceTime - debounceTS;
+  long timeSinceChange = timeStamp - debounceTS;
+
+  cli();
   switch(state[0])
   {
     // Register initial button state change
     case ButtonState::Open:          // Not pressed, and output has been read
+    {
       state[1] = ButtonState::Open;  // Reset output state
       if (buttonDown)
       {
         state[0] = ButtonState::Closed;
       }
       break;
+    }
 
     // Register single click if button went from closed to open and we
     // didn't get a second click within DOUBLECLICKTIME
     // Register a long press if button stays closed for PRESSTIME
     case ButtonState::Closed:
+    {
       if (!buttonDown)
       {
         if (!doubleClickEnabled)
@@ -73,8 +83,10 @@ void MagicButton::service()
         state[0] = ButtonState::Pressed;
       }
       break;
+    }
 
     case ButtonState::Clicked:
+    {
       if (buttonDown)
       {
         if (timeSinceChange < DOUBLECLICKTIME)
@@ -89,8 +101,10 @@ void MagicButton::service()
         outputCleared = false;
       }
       break;
+    }
 
     case ButtonState::DoubleClicked:
+    {
       if (timeSinceChange >= DOUBLECLICKTIME)
       {
         if (buttonDown)
@@ -107,8 +121,10 @@ void MagicButton::service()
         }
       }
       break;
+    }
 
     case ButtonState::Pressed:
+    {
       if (!buttonDown)
       {
           state[1] = ButtonState::Pressed;
@@ -122,16 +138,20 @@ void MagicButton::service()
         outputCleared = false;
       }
       break;
+    }
 
     case ButtonState::ClickedAndHeld:
     case ButtonState::Held:
+    {
       if (!buttonDown)
       {
         state[0] = ButtonState::Released;
       }
       break;
+    }
 
     case ButtonState::Released:
+    {
       if (outputCleared)
       {
         state[0] = ButtonState::Open;
@@ -139,17 +159,19 @@ void MagicButton::service()
       }
       // State persists until external read and clear
       break;
+    }
 
     default:
       break;
   }
   sei();
+
+#ifdef DEBUG_BUTTON_STATES
+
   //////////////////////////////////////////
   // SERIAL DEBUGGING
-  /*  //<---------there's the asterisk!!!
   if (state[1] != tmpState[1])
   {
-    Serial.print("button state: ");
     switch(state[1])
     {
       case ButtonState::ClickedAndHeld:
@@ -188,14 +210,16 @@ void MagicButton::service()
         break;
      }
   }
-  */ //<---------there's the other one!
+  tmpState[0] = state[0];
+  tmpState[1] = state[1];
   //////////////////////////////////////////
+#endif
 };
 
 // Report current state and free to record further clicks.
 // State only resets if button has been released, else
 // HELD or PRESSED will be returned on each call
-ButtonState MagicButton::readAndFree(void)
+ButtonState MagicButton::read(void)
 {
   ButtonState retVal;
   cli();
@@ -204,7 +228,6 @@ ButtonState MagicButton::readAndFree(void)
     outputCleared = true;
   }
   retVal = state[1];
-  service();
   sei();
   return retVal;
 }

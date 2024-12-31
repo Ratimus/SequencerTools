@@ -7,14 +7,26 @@
 #include "ClickEncoderInterface.h"
 
 // Constructor
-ClickEncoderInterface::ClickEncoderInterface(ClickEncoder &rEnc, int sense):
-  enc(rEnc),
-  sensivity(sense)
+ClickEncoderInterface::ClickEncoderInterface(ClickEncoder *Enc, int sense):
+  pEncoder(Enc),
+  sensivity(sense),
+  pos(0),
+  oldPos(0)
 {
-  pos      = 0;
-  oldPos   = pos;
   update();
 }
+
+
+ClickEncoderInterface::ClickEncoderInterface(
+    uint8_t A,
+    uint8_t B,
+    uint8_t BTN,
+    int sense,
+    uint8_t stepsPerNotch,
+    bool usePullResistors):
+  pEncoder(std::make_shared<ClickEncoder>(A, B, BTN, stepsPerNotch, usePullResistors))
+{;}
+
 
 encEvnts ClickEncoderInterface::getEvent(void)
 {
@@ -37,7 +49,8 @@ encEvnts ClickEncoderInterface::getEvent(void)
       }
       return encEvnts::Right;
     }
-    else if (d >= sensivity)             // Left Click
+
+    if (d >= sensivity)             // Left Click
     {
       oldPos += sensivity;
       if (btnState == ButtonState::Held) // Hold+Turn
@@ -78,10 +91,8 @@ encEvnts ClickEncoderInterface::getEvent(void)
 
         return encEvnts::Hold;
       }
-      else
-      {
-        heldClicked = 0;
-      }
+
+      heldClicked = 0;
     }
   }
 
@@ -91,8 +102,8 @@ encEvnts ClickEncoderInterface::getEvent(void)
 void ClickEncoderInterface::flush()
 {
   btnState = ButtonState::Open;
-  enc.getClicks();
-  enc.getButton();
+  pEncoder->getClickCount();
+  pEncoder->readButtonState();
   oldPos = pos;
 }
 // ButtonStates you may see in the wild:
