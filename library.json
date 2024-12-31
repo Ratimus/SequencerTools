@@ -1,6 +1,6 @@
 {
   "name": "SequencerTools",
-  "version": "3.0.5",
+  "version": "3.1.0",
   "description": "An Arduino library of synchronization utilities and interfaces to common controls for building synthesizers and sequencers",
   "keywords": "sequencer, drum machine, debounce, rotary encoder",
   "repository":
@@ -22,7 +22,10 @@
 	  "adafruit/Adafruit MCP4728": "1.0.9",
     "robtillaart/MCP_ADC": "0.2.1",
     "robtillaart/bitHelpers": "0.1.11",
-    "robtillaart/FastShiftOut": "0.3.2"
+    "robtillaart/FastShiftOut": "0.3.2",
+    "wire": "*",
+    "SPI": "*",
+    "adafruit/Adafruit BusIO": "1.16.2"
   },
   "frameworks": "Arduino",
   "platforms": "ESP32"
