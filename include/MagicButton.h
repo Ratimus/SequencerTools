@@ -8,7 +8,7 @@
 #define MagicButton_h
 
 #include <Arduino.h>
-#include "CD4067.h"
+#include <CD4067.h>
 #include <memory>
 #include <DirectIO.h>
 
