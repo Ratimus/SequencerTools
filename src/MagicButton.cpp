@@ -11,15 +11,10 @@
 // persist until reported and reset by separate call to read()
 void MagicButton::service()
 {
-  if (pin < 0)
-  {
-    return;
-  }
-
   long long timeStamp = 0;
 
   // Shift buffer by one and tack the current value on the end
-  buff = (buff << 1) | (pullup ^ (bool)directRead(pin));
+  buff = (buff << 1) | getRawVal();
 
   timeStamp = millis();
 

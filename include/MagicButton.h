@@ -8,6 +8,10 @@
 #define MagicButton_h
 
 #include <Arduino.h>
+#include "CD4067.h"
+#include <memory>
+#include <DirectIO.h>
+
 // #define DEBUG_BUTTON_STATES
 
 typedef enum Button_e
@@ -50,7 +54,7 @@ class MagicButton
 {
 private:
 
-  uint8_t  pin;         // HW pin
+  int8_t   pin;         // HW pin
   bool     pullup;      // Set TRUE to enable pullup resistor if active low
   uint8_t  dbnceIntvl;  // How long to lockout bounce AFTER press/release
   bool     doubleClickEnabled;
@@ -60,13 +64,24 @@ private:
   volatile bool outputCleared;
   volatile long long debounceTS;
   volatile uint16_t buff;        // Moving window to record multiple readings
+
+  virtual bool getRawVal()
+  {
+    if (pin < 0)
+    {
+      return 0;
+    }
+
+    return pullup ^ (bool)directRead(pin);
+  }
+
 #ifdef DEBUG_BUTTON_STATES
   ButtonState tmpState[2];
 #endif
 
 public:
   // Constructor
-  MagicButton(uint8_t pin,
+  MagicButton(int8_t pin,
               bool pullup,
               bool doubleClickable):  // Active LOW if pullup == TRUE
       pin(pin),
@@ -80,11 +95,41 @@ public:
     state[1]   = state[0];
     doubleClickEnabled = doubleClickable;
     outputCleared = true;
-    pinMode(pin, pullup ? INPUT_PULLUP : INPUT);
+    if (pin != -1)
+    {
+      pinMode(pin, pullup ? INPUT_PULLUP : INPUT);
+    }
   }
 
   void service();
   ButtonState read();
+};
+
+
+class MuxedButton : public MagicButton
+{
+  static std::shared_ptr<HW_Mux> _SHARED_MUX;
+  const uint8_t _BITMASK;
+  static uint16_t _REGISTER;
+
+  static void update() { _REGISTER = _SHARED_MUX->getReg(); }
+
+public:
+
+  MuxedButton(uint8_t bit):
+      MagicButton(-1, true, true),
+      _BITMASK((uint8_t)1 << bit)
+  { ; }
+
+  static void setMux(HW_Mux *pMux)
+  {
+    _SHARED_MUX = std::shared_ptr<HW_Mux>(pMux);
+  }
+
+  virtual bool getRawVal(void) override
+  {
+    return _REGISTER & _BITMASK;
+  }
 };
 
 
