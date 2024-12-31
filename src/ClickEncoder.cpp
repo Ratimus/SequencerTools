@@ -15,6 +15,7 @@
 // ----------------------------------------------------------------------------
 
 #include "ClickEncoder.h"
+#include <DirectIO.h>
 
 // ----------------------------------------------------------------------------
 // Acceleration configuration (for 1000Hz calls to ::service())
@@ -43,8 +44,11 @@ const uint8_t  ENC_ACCEL_DEC (2);
 
 // ----------------------------------------------------------------------------
 
-ClickEncoder::ClickEncoder(
-  uint8_t A, uint8_t B, uint8_t BTN, uint8_t stepsPerNotch, bool activeLow) :
+ClickEncoder::ClickEncoder(uint8_t A,
+                           uint8_t B,
+                           uint8_t BTN,
+                           uint8_t stepsPerNotch,
+                           bool usePulllResistor) :
    doubleClickEnabled(true),
    accelerationEnabled(true),
    delta(0),
@@ -53,21 +57,21 @@ ClickEncoder::ClickEncoder(
    steps(stepsPerNotch),
    pinA(A),
    pinB(B),
-   pullup(activeLow),
-   hwButton(BTN, activeLow, doubleClickEnabled)
+   activeLow(usePulllResistor)
 {
-  uint8_t configType = pullup ? INPUT_PULLUP : INPUT;
+  hwButton = std::make_shared<MagicButton>(BTN, activeLow, doubleClickEnabled);
+  uint8_t configType = activeLow ? INPUT_PULLUP : INPUT;
   pinMode(pinA,   configType);
   pinMode(pinB,   configType);
 
-  if (digitalRead(pinA) != pullup)
+  if ((bool)directRead(pinA) != activeLow)
   {
     last = 3;
   }
 
-  if (digitalRead(pinB) != pullup)
+  if ((bool)directRead(pinB) != activeLow)
   {
-    last ^=1;
+    last ^= 1;
   }
 }
 
@@ -88,6 +92,7 @@ void ClickEncoder::service(void)
 
   bool moved = false;
 
+  cli();
 #if ENC_DECODER == ENC_FLAKY
   last = (last << 2) & 0x0F;
 
@@ -108,9 +113,9 @@ void ClickEncoder::service(void)
     moved = true;
   }
 #elif ENC_DECODER == ENC_NORMAL
-  int8_t curr = (digitalRead(pinA) != pullup) ? 3 : 0;
+  int8_t curr = ((bool)directRead(pinA) != activeLow) ? 3 : 0;
 
-  if (digitalRead(pinB) != pullup)
+  if ((bool)directRead(pinB) != activeLow)
   {
     curr ^= 1;
   }
@@ -135,28 +140,31 @@ void ClickEncoder::service(void)
       acceleration += ENC_ACCEL_INC;
     }
   }
-  hwButton.service();
+  sei();
+  hwButton->service();
 }
 
 
-// Update button state. If our button variable is free,
-// copy the button's state into it and free the hw button
-// for further updates. Don't free *our* encBtnState variable
-// until someone else reads *us*
+  // Update button state. If our button variable is free,
+  // copy the button's state into it and free the hw button
+  // for further updates. Don't free *our* encBtnState variable
+  // until someone else reads *us*
 void ClickEncoder::updateButton()
 {
-  hwButton.service();
+  hwButton->service();
   if (btnStateCleared)
   {
-    ButtonState tmp = hwButton.readAndFree();
+    ButtonState tmp = hwButton->read();
     encBtnState     = tmp;
     btnStateCleared = false;
   }
 }
 // ----------------------------------------------------------------------------
 
-int16_t ClickEncoder::getClicks(void)
+int16_t ClickEncoder::getClickCount(void)
 {
+  updateButton();
+
   int16_t val;
 
   cli();
@@ -165,7 +173,6 @@ int16_t ClickEncoder::getClicks(void)
   if (steps == 2) delta = val & 1;
   else if (steps == 4) delta = val & 3;
   else delta = 0; // default to 1 step per notch
-  updateButton();
   sei();
 
   if (steps == 4) val >>= 2;
@@ -189,7 +196,7 @@ int16_t ClickEncoder::getClicks(void)
 // ----------------------------------------------------------------------------
 // Resets buttonState and returns value prior to reset; encBtnState output state
 // persists until this function is called && encBtnState has been released
-ButtonState ClickEncoder::getButton(void)
+ButtonState ClickEncoder::readButtonState(void)
 {
   ButtonState ret = this->encBtnState;
   btnStateCleared = true;

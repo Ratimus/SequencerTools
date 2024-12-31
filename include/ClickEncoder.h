@@ -21,6 +21,7 @@
 
 #include <Arduino.h>
 #include <MagicButton.h>
+#include <memory>
 
 // ----------------------------------------------------------------------------
 
@@ -47,16 +48,19 @@ class ClickEncoder
 public:
 
   // Constructor
-  ClickEncoder(uint8_t A, uint8_t B, uint8_t BTN,
-               uint8_t stepsPerNotch = 1, bool activeLow = true);
+  ClickEncoder(uint8_t A,
+               uint8_t B,
+               uint8_t BTN,
+               uint8_t stepsPerNotch,
+               bool usePullResistor);
 
   // Call every 1 ms in ISR
   void    service(void);
   void    updateButton(void);
 
   // Get current state and free for further updates
-  int16_t      getClicks(void);
-  ButtonState  getButton(void);
+  int16_t      getClickCount  (void);
+  ButtonState  readButtonState(void);
 
   void setDoubleClickEnabled(const bool &d) { doubleClickEnabled = d; }
   const bool getDoubleClickEnabled() { return doubleClickEnabled; }
@@ -64,12 +68,12 @@ public:
 
   void setAccelerationEnabled(const bool &a);
 
-
 private:
 
   const    uint8_t  pinA;
   const    uint8_t  pinB;
-  const    bool     pullup;
+  const    bool     activeLow;
+
   volatile int16_t  delta;
   volatile int16_t  last;
   volatile uint16_t acceleration;
@@ -82,7 +86,7 @@ private:
   bool btnStateCleared;
   bool doubleClickEnabled;
 
-  MagicButton          hwButton;
+  std::shared_ptr<MagicButton> hwButton;
   volatile ButtonState encBtnState;
 };
 
