@@ -112,6 +112,8 @@ class MuxedButton : public MagicButton
   const uint8_t _BITMASK;
   static inline uint16_t _REGISTER = 0;
 
+public:
+
   static void update()
   {
     if (_SHARED_MUX == NULL)
@@ -121,8 +123,6 @@ class MuxedButton : public MagicButton
 
     _REGISTER = _SHARED_MUX->getReg();
   }
-
-public:
 
   MuxedButton(uint8_t bit):
       MagicButton(-1, true, true),
