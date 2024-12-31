@@ -10,6 +10,8 @@
 #ifndef EncoderWrapper_H
 #define EncoderWrapper_H
 
+#ifdef __rotaryEventIn_h__
+
 #include <Arduino.h>
 #include "ClickEncoderInterface.h"
 #include <menuDefs.h>
