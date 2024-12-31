@@ -143,4 +143,6 @@ public:
 };
 }//namespace Menu
 
+#endif /* #ifdef __rotaryEventIn_h__ */
+
 #endif /* EncoderWrapper_h */
