@@ -101,21 +101,10 @@ public:
   uint8_t getChannel(void)              { return channel; }
 };
 
-// class MCP3001 : public MCP_ADC
-// class MCP3002 : public MCP_ADC
-// class MCP3004 : public MCP_ADC
-// class MCP3008 : public MCP_ADC
-// class MCP3201 : public MCP_ADC
-// class MCP3202 : public MCP_ADC
-// class MCP3204 : public MCP_ADC
-// class MCP3208 : public MCP_ADC
-
-
-// -- END OF FILE --
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-// ADC Channel correspinding to an ADC-enabled input on the ESP32
+// ADC Channel corresponding to an ADC-enabled input on the ESP32
 //
 //  inPin: which ESP32 pin to read
 class ESP32_ADC_Channel : public ADC_Object

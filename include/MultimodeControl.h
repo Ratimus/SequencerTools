@@ -24,9 +24,26 @@ class MultiModeCtrl
     return pVirtualCtrls.at(idx);
   }
 
+  friend class ControllerBank;
+
 public:
 
   MultiModeCtrl(ADC_Object *inAdc,
+                uint8_t  numModes,
+                uint16_t topOfRange,
+                uint16_t defaultVal = 0):
+      pActiveCtrl(nullptr),
+      numModes(numModes)
+  {
+    for (uint8_t mode = 0; mode < numModes; ++mode)
+    {
+      pVirtualCtrls.push_back(std::make_shared<ControlObject>(inAdc, topOfRange + 1, defaultVal));
+    }
+
+    pActiveCtrl = pVirtualCtrls.at(0);
+  }
+
+    MultiModeCtrl(std::shared_ptr<ADC_Object>inAdc,
                 uint8_t  numModes,
                 uint16_t topOfRange,
                 uint16_t defaultVal = 0):

@@ -43,6 +43,16 @@ public:
     pADC = std::shared_ptr<ADC_Object>(inADC);
   }
 
+  ControlObject(std::shared_ptr<ADC_Object>inADC,
+                uint16_t numVals,
+                uint16_t defaultControlVal = 0):
+      lockState(STATE_LOCKED),
+      numCtrlVals(numVals),
+      lockCtrlVal(defaultControlVal)
+  {
+    pADC = inADC;
+  }
+
   uint16_t  getMin(void);
   uint16_t  getMax(void);
   LockState getLockState(void);
