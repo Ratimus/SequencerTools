@@ -17,7 +17,7 @@ class HW_Mux
   SemaphoreHandle_t resourceMutex;
   TaskHandle_t muxTaskHandle;
 
-  uint16_t MUXREG;
+  volatile uint16_t MUXREG;
   uint16_t tmp;
 
   friend void muxTask(void * param);

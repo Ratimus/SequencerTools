@@ -108,13 +108,21 @@ public:
 
 class MuxedButton : public MagicButton
 {
-  static std::shared_ptr<HW_Mux> _SHARED_MUX;
+  static inline std::shared_ptr<HW_Mux> _SHARED_MUX = NULL;
   const uint8_t _BITMASK;
-  static uint16_t _REGISTER;
-
-  static void update() { _REGISTER = _SHARED_MUX->getReg(); }
+  static inline uint16_t _REGISTER = 0;
 
 public:
+
+  static void update()
+  {
+    if (_SHARED_MUX == NULL)
+    {
+      return;
+    }
+
+    _REGISTER = _SHARED_MUX->getReg();
+  }
 
   MuxedButton(uint8_t bit):
       MagicButton(-1, true, true),
@@ -131,6 +139,5 @@ public:
     return _REGISTER & _BITMASK;
   }
 };
-
 
 #endif
