@@ -90,6 +90,11 @@ public:
   { ; }
 
   MCP_Channel(MCP_ADC *pADC, uint8_t inChannel = INVALID_CHANNEL):
+      pADC(std::shared_ptr<MCP_ADC>(pADC)),
+      channel(inChannel)
+  { ; }
+
+  MCP_Channel(std::shared_ptr<MCP_ADC>pADC, uint8_t inChannel = INVALID_CHANNEL):
       pADC(pADC),
       channel(inChannel)
   { ; }
