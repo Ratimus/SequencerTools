@@ -15,15 +15,37 @@ class ControllerBank
   std::vector<uint8_t> positionMapping;
 
 public:
+  ControllerBank(uint8_t controlCount,
+                 uint8_t modeCount):
+      currentMode(0),
+      controlCount(controlCount),
+      modeCount(modeCount)
+  {
+    controls.reserve(controlCount);
+  }
+
+  void init(const uint8_t *pins,
+            uint16_t topOfRange)
+  {
+    for (uint8_t n(0); n < controlCount; ++n)
+    {
+      pinMode(pins[n], INPUT);
+      auto pESP_ADC = std::make_shared<ESP32_ADC_Channel>(pins[n]);
+      controls.push_back(MultiModeCtrl(pESP_ADC, modeCount, topOfRange));
+    }
+  }
 
   // Constructor passing an array of ESP32 pin numbers to use as ADC channels
   //   controlCount: number of physical controls
   //   modeCount:    number of modes / pages / virtual controller scenes
   //   topOfRange:   highest control value that you want to return
-  ControllerBank(uint8_t *pins,
+  ControllerBank(const uint8_t *pins,
                  uint8_t controlCount,
                  uint8_t modeCount,
-                 uint8_t topOfRange)
+                 uint16_t topOfRange):
+      currentMode(0),
+      controlCount(controlCount),
+      modeCount(modeCount)
   {
     for (uint8_t n(0); n < controlCount; ++n)
     {
@@ -35,7 +57,7 @@ public:
   //   channelCount: number of physical channels (note: starts at 0; may want to allow using only a subset of available channels)
   //   modeCount:    number of modes / pages / virtual controller scenes
   //   topOfRange:   highest control value that you want to return
-  ControllerBank(MCP_ADC* pADC, uint8_t channelCount, uint8_t modeCount, uint8_t topOfRange)
+  ControllerBank(MCP_ADC* pADC, uint8_t channelCount, uint8_t modeCount, uint16_t topOfRange)
   {
     for (uint8_t n(0); n < channelCount; ++n)
     {
@@ -43,7 +65,7 @@ public:
     }
   }
 
-  ControllerBank(std::shared_ptr<MCP_ADC>pADC, uint8_t channelCount, uint8_t modeCount, uint8_t topOfRange)
+  ControllerBank(std::shared_ptr<MCP_ADC>pADC, uint8_t channelCount, uint8_t modeCount, uint16_t topOfRange)
   {
     for (uint8_t n(0); n < channelCount; ++n)
     {
@@ -59,7 +81,7 @@ public:
                  uint8_t controlCount,
                  uint8_t resolution,
                  uint8_t modeCount,
-                 uint8_t topOfRange)
+                 uint16_t topOfRange)
   {
     std::shared_ptr<MCP_ADC>pADC(nullptr);
     switch (controlCount)
@@ -169,21 +191,25 @@ public:
     }
   }
 
-  void selectScene(uint8_t sceneIdx)
+  void selectScene(uint8_t sceneIdx, bool reqUnlock = true)
   {
     saveScene();
     currentMode = sceneIdx;
     for (uint8_t n(0); n < controlCount; ++n)
     {
       controls[getPositionMappedIndex(n)].selectMode(currentMode);
+      if (reqUnlock)
+      {
+        controls[getPositionMappedIndex(n)].reqUnlock();
+      }
     }
   }
 
   void service()
   {
-    for (auto &ctrl: controls)
+    for (uint8_t n(0); n < controlCount; ++n)
     {
-      ctrl.service();
+      controls[getPositionMappedIndex(n)].service();
     }
   }
 
@@ -201,9 +227,9 @@ public:
     }
     else
     {
-      for (auto &ctrl: controls)
+      for (uint8_t n(0); n < controlCount; ++n)
       {
-        ctrl.reqUnlock();
+        controls[getPositionMappedIndex(n)].reqUnlock();
       }
     }
   }

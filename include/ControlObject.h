@@ -40,7 +40,7 @@ public:
       numCtrlVals(numVals),
       lockCtrlVal(defaultControlVal)
   {
-    pADC = std::shared_ptr<ADC_Object>(inADC);
+    pADC = std::make_shared<SmoothedADC>(std::shared_ptr<ADC_Object>(inADC), 100);
   }
 
   ControlObject(std::shared_ptr<ADC_Object>inADC,
@@ -50,7 +50,7 @@ public:
       numCtrlVals(numVals),
       lockCtrlVal(defaultControlVal)
   {
-    pADC = inADC;
+    pADC = std::make_shared<SmoothedADC>(inADC, 100);
   }
 
   uint16_t  getMin(void);

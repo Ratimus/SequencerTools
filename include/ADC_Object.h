@@ -8,6 +8,7 @@
 #include "MCP_ADC.h"
 #include "ESP32AnalogRead.h"
 #include <memory>
+#include <list>
 
 const uint8_t MAX_BUFFER_SIZE(128);
 
@@ -141,6 +142,7 @@ public:
   ESP32_ADC_Channel(uint8_t inPin):
       pin(inPin)
   {
+    pinMode(pin, INPUT);
     ADC = ESP32AnalogRead(pin);
   }
 
@@ -156,73 +158,99 @@ public:
 class SmoothedADC : public ADC_Object
 {
 protected:
-  std::vector<uint16_t> readings;
+  std::array<uint16_t, MAX_BUFFER_SIZE> readings;
   std::shared_ptr<ADC_Object> pADC;
   MCP_ADC *pMCP;
   ESP32_ADC_Channel *pESP;
   MCP_Channel *pCHNL;
 
   uint8_t   buffSize;
+  uint8_t   readIndex;
   uint16_t  sampleAvg;
   uint64_t  runningSum;
   uint16_t  sampleCount;
 
 public:
-  SmoothedADC(ESP32_ADC_Channel *inADC, uint8_t sampleCount = MAX_BUFFER_SIZE):
-      buffSize(sampleCount)
+  SmoothedADC(std::shared_ptr<ADC_Object>inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
+    buffSize(buffSize),
+    pADC(inADC)
+  {
+    reset();
+  }
+
+  SmoothedADC(ESP32_ADC_Channel *inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
+      buffSize(buffSize)
   {
     pADC = std::shared_ptr<ESP32_ADC_Channel>(inADC);
+    reset();
   }
 
-  SmoothedADC(MCP_ADC *pMCP, uint8_t inChannel = INVALID_CHANNEL, uint8_t sampleCount = MAX_BUFFER_SIZE):
-      pMCP(pMCP),
-      buffSize(sampleCount)
+  SmoothedADC(std::shared_ptr<ESP32_ADC_Channel>inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
+      buffSize(buffSize),
+      pADC(inADC)
   {
-    pADC = std::make_shared<MCP_Channel>(pMCP, inChannel);
+    reset();
   }
 
-  SmoothedADC(MCP_Channel *inADC, uint8_t sampleCount = MAX_BUFFER_SIZE):
-      buffSize(sampleCount)
+  SmoothedADC(MCP_Channel *inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
+      buffSize(buffSize)
   {
     pADC = std::shared_ptr<MCP_Channel>(inADC);
+    reset();
+  }
+
+  SmoothedADC(std::shared_ptr<MCP_Channel>inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
+      buffSize(buffSize),
+      pADC(inADC)
+  {
+    reset();
   }
 
   void reset()
   {
-    while (!readings.empty())
-    {
-      readings.pop_back();
-    }
-    readings.reserve(buffSize);
+    memset(&readings, 0, sizeof(uint16_t) * buffSize);
     runningSum  = 0;
     sampleCount = 0;
+    readIndex   = 0;
+    sampleAvg   = 0;
+    fillBuffer();
   }
 
   virtual void service(void) override
   {
     pADC->service();
+    uint16_t reading = pADC->read();
     if (sampleCount == buffSize)
     {
-      runningSum -= *readings.cend();
-      readings.pop_back();
+      runningSum -= readings[readIndex];
+      readings[readIndex] = reading;
+      ++readIndex;
+      if (readIndex == buffSize)
+      {
+        readIndex = 0;
+      }
     }
     else
     {
       ++sampleCount;
     }
-    uint16_t reading = pADC->read();
     runningSum += reading;
-    readings.insert(readings.begin(), reading);
   }
 
   virtual uint16_t read(void) override
   {
     if (sampleCount == 0)
     {
+
       return pADC->getMin();
     }
-
-    return runningSum / sampleCount;
+    sampleAvg = runningSum / sampleCount;
+    Serial.print(runningSum);
+    Serial.print(" / ");
+    Serial.print(sampleCount);
+    Serial.print(" = ");
+    Serial.println(sampleAvg);
+    return sampleAvg;
   }
 
   void fillBuffer(void)
