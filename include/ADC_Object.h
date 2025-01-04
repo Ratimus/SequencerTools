@@ -9,6 +9,7 @@
 #include "ESP32AnalogRead.h"
 #include <memory>
 #include <list>
+#include <freertos/semphr.h>
 
 const uint8_t MAX_BUFFER_SIZE(128);
 
@@ -23,33 +24,28 @@ const uint8_t MAX_BUFFER_SIZE(128);
 class ADC_Object
 {
 protected:
+  SemaphoreHandle_t sem;
 
   uint16_t adcMin;
   uint16_t adcMax;
-  uint8_t  buffSize;
-
-  volatile uint16_t val;
 
 public:
 
   inline static const uint8_t INVALID_CHANNEL = 99;
 
   ADC_Object():
-      adcMin(0),
-      adcMax(4095)
+      ADC_Object(0, 4095)
   { ; }
 
   ADC_Object(uint16_t min, uint16_t max):
-    adcMin(min),
-    adcMax(max)
-  { ; }
+      adcMin(min),
+      adcMax(max)
+  {
+    sem = xSemaphoreCreateMutex();
+  }
 
   virtual void service(void) = 0;
-
-  virtual uint16_t read(void)
-  {
-    return val;
-  }
+  virtual uint16_t read(void) = 0;
 
   void setMin(uint16_t min) { adcMin = min; }
   void setMax(uint16_t max) { adcMax = max; }
@@ -70,19 +66,27 @@ private:
 
   uint8_t channel;
   std::shared_ptr<MCP_ADC> pADC;
+  volatile uint16_t rawVal;
 
 public:
 
   virtual void service(void) override
   {
+    if (pdTRUE != xSemaphoreTake(sem, 10))
+    {
+      Serial.println("MCH svc semtake failed");
+      while (1);
+    }
+
     if ( (pADC == nullptr) || (channel == INVALID_CHANNEL) )
     {
-      val = adcMin;
+      rawVal = adcMin;
     }
     else
     {
-      val = pADC->analogRead(channel);
+      rawVal = pADC->analogRead(channel);
     }
+    xSemaphoreGive(sem);
   }
 
   MCP_Channel():
@@ -90,12 +94,14 @@ public:
       pADC(nullptr)
   { ; }
 
-  MCP_Channel(MCP_ADC *pADC, uint8_t inChannel = INVALID_CHANNEL):
+  MCP_Channel(MCP_ADC *pADC,
+              uint8_t inChannel = INVALID_CHANNEL):
       pADC(std::shared_ptr<MCP_ADC>(pADC)),
       channel(inChannel)
   { ; }
 
-  MCP_Channel(std::shared_ptr<MCP_ADC>pADC, uint8_t inChannel = INVALID_CHANNEL):
+  MCP_Channel(std::shared_ptr<MCP_ADC>pADC,
+              uint8_t inChannel = INVALID_CHANNEL):
       pADC(pADC),
       channel(inChannel)
   { ; }
@@ -105,6 +111,19 @@ public:
 
   std::shared_ptr<MCP_ADC> getADC(void) { return pADC; }
   uint8_t getChannel(void)              { return channel; }
+
+  virtual uint16_t read(void) override
+  {
+    if (pdTRUE != xSemaphoreTake(sem, 10))
+    {
+      Serial.println("MCH read semtake failed");
+      while (1);
+    }
+
+    uint16_t ret = rawVal;
+    xSemaphoreGive(sem);
+    return ret;
+  }
 };
 
 
@@ -119,37 +138,63 @@ private:
   ESP32AnalogRead ADC;
   uint8_t pin;
 
+  volatile uint16_t rawVal;
+
 public:
-
-  virtual void service() override
-  {
-    if (pin == INVALID_CHANNEL)
-    {
-      val = adcMin;
-    }
-    else
-    {
-      val = ADC.readRaw();
-    }
-  }
-
   ESP32_ADC_Channel():
-      pin(INVALID_CHANNEL)
+      ESP32_ADC_Channel(INVALID_CHANNEL)
   {
-    ADC = ESP32AnalogRead();
+    ;
   }
 
   ESP32_ADC_Channel(uint8_t inPin):
-      pin(inPin)
+      ADC_Object()
   {
-    pinMode(pin, INPUT);
-    ADC = ESP32AnalogRead(pin);
+    ADC = ESP32AnalogRead();
+    rawVal = 0;
+    this->attach(inPin);
   }
 
-  void setChannel(uint8_t inChannel)
+  virtual void service() override
+  {
+    if (pdTRUE != xSemaphoreTake(sem, 10))
+    {
+      Serial.println("e32 svc semtake failed");
+      while (1);
+    }
+
+    if (pin == INVALID_CHANNEL)
+    {
+      rawVal = adcMin;
+    }
+    else
+    {
+      rawVal = ADC.readRaw();
+    }
+    xSemaphoreGive(sem);
+  }
+
+  virtual uint16_t read() override
+  {
+    if (pdTRUE != xSemaphoreTake(sem, 10))
+    {
+      Serial.println("e32 read semtake failed");
+      while (1);
+    }
+
+    uint16_t ret = rawVal;
+    xSemaphoreGive(sem);
+    return ret;
+  }
+
+  void attach(uint8_t inChannel)
   {
     pin = inChannel;
-    pinMode(pin, INPUT);
+    if (pin == INVALID_CHANNEL)
+    {
+      return;
+    }
+    pinMode(pin, INPUT_PULLDOWN);
     ADC.attach(pin);
   }
 };
@@ -158,48 +203,49 @@ public:
 class SmoothedADC : public ADC_Object
 {
 protected:
-  std::array<uint16_t, MAX_BUFFER_SIZE> readings;
+  std::array<volatile uint16_t, MAX_BUFFER_SIZE> readings;
   std::shared_ptr<ADC_Object> pADC;
-  MCP_ADC *pMCP;
-  ESP32_ADC_Channel *pESP;
-  MCP_Channel *pCHNL;
 
   uint8_t   buffSize;
-  uint8_t   readIndex;
-  uint16_t  sampleAvg;
-  uint64_t  runningSum;
-  uint16_t  sampleCount;
+  volatile uint8_t   writeIndex;
+  volatile int64_t   runningSum;
+  volatile uint16_t  sampleCount;
 
 public:
-  SmoothedADC(std::shared_ptr<ADC_Object>inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
-    buffSize(buffSize),
-    pADC(inADC)
-  {
-    reset();
-  }
-
-  SmoothedADC(ESP32_ADC_Channel *inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
-      buffSize(buffSize)
-  {
-    pADC = std::shared_ptr<ESP32_ADC_Channel>(inADC);
-    reset();
-  }
-
-  SmoothedADC(std::shared_ptr<ESP32_ADC_Channel>inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
+  SmoothedADC(std::shared_ptr<ADC_Object>inADC,
+              uint8_t buffSize = MAX_BUFFER_SIZE):
       buffSize(buffSize),
       pADC(inADC)
   {
     reset();
   }
 
-  SmoothedADC(MCP_Channel *inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
+  SmoothedADC(ESP32_ADC_Channel *inADC,
+              uint8_t buffSize = MAX_BUFFER_SIZE):
+      buffSize(buffSize)
+  {
+    pADC = std::shared_ptr<ESP32_ADC_Channel>(inADC);
+    reset();
+  }
+
+  SmoothedADC(std::shared_ptr<ESP32_ADC_Channel>inADC,
+              uint8_t buffSize = MAX_BUFFER_SIZE):
+      buffSize(buffSize),
+      pADC(inADC)
+  {
+    reset();
+  }
+
+  SmoothedADC(MCP_Channel *inADC,
+              uint8_t buffSize = MAX_BUFFER_SIZE):
       buffSize(buffSize)
   {
     pADC = std::shared_ptr<MCP_Channel>(inADC);
     reset();
   }
 
-  SmoothedADC(std::shared_ptr<MCP_Channel>inADC, uint8_t buffSize = MAX_BUFFER_SIZE):
+  SmoothedADC(std::shared_ptr<MCP_Channel>inADC,
+              uint8_t buffSize = MAX_BUFFER_SIZE):
       buffSize(buffSize),
       pADC(inADC)
   {
@@ -208,49 +254,65 @@ public:
 
   void reset()
   {
+    if (pdTRUE != xSemaphoreTake(sem, 10))
+    {
+      Serial.println("smth reset semtake failed");
+      while (1);
+    }
+
     memset(&readings, 0, sizeof(uint16_t) * buffSize);
     runningSum  = 0;
     sampleCount = 0;
-    readIndex   = 0;
-    sampleAvg   = 0;
-    fillBuffer();
+    writeIndex = 0;
+    xSemaphoreGive(sem);
   }
 
   virtual void service(void) override
   {
     pADC->service();
-    uint16_t reading = pADC->read();
+    uint16_t newestReading = pADC->read();
+
+    if (pdTRUE != xSemaphoreTake(sem, 10))
+    {
+      Serial.println("smth svc semtake failed");
+      while (1);
+    }
+
+    runningSum += newestReading;
     if (sampleCount == buffSize)
     {
-      runningSum -= readings[readIndex];
-      readings[readIndex] = reading;
-      ++readIndex;
-      if (readIndex == buffSize)
+      runningSum -= readings[writeIndex];
+      readings[writeIndex] = newestReading;
+      ++writeIndex;
+      if (writeIndex == buffSize)
       {
-        readIndex = 0;
+        writeIndex = 0;
       }
     }
     else
     {
+      readings[sampleCount] = newestReading;
       ++sampleCount;
     }
-    runningSum += reading;
+    xSemaphoreGive(sem);
   }
 
   virtual uint16_t read(void) override
   {
     if (sampleCount == 0)
     {
-
       return pADC->getMin();
     }
-    sampleAvg = runningSum / sampleCount;
-    Serial.print(runningSum);
-    Serial.print(" / ");
-    Serial.print(sampleCount);
-    Serial.print(" = ");
-    Serial.println(sampleAvg);
-    return sampleAvg;
+
+    if (pdTRUE != xSemaphoreTake(sem, 10))
+    {
+      Serial.println("smth read semtake failed");
+      while (1);
+    }
+
+    uint16_t ret = (uint16_t)(runningSum / (uint64_t)sampleCount);
+    xSemaphoreGive(sem);
+    return ret;
   }
 
   void fillBuffer(void)

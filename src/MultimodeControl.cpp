@@ -11,17 +11,42 @@ uint8_t MultiModeCtrl::getNumModes()
 // Returns the value of the currently selected VirtualCtrl
 uint16_t MultiModeCtrl::read()
 {
-  return pActiveCtrl->read();
+  if (!semTake())
+  {
+    Serial.println("MMC read semtake failed");
+    if (sem == NULL) Serial.println("null ptr");
+    while (1);
+  }
+  uint16_t ret = getPtr()->read();
+  semGive();
+  return ret;
 }
 
-void MultiModeCtrl::service() { pActiveCtrl->service(); }
+void MultiModeCtrl::service()
+{
+  if (!semTake())
+  {
+    Serial.println("MMC svc semtake failed");
+    if (sem == NULL) Serial.println("null ptr");
+    while (1);
+  }
+  getPtr()->service();
+  semGive();
+}
 
 ////////////////////////////////////////////////
 // Sets the LockVal for the current active VirtualCtrl with its real
 // (measured) value regardless of LockState
 void MultiModeCtrl::setDefaults()
 {
-  pActiveCtrl->overWrite();
+  if (!semTake())
+  {
+    Serial.println("MMC svc semtake failed");
+    if (sem == NULL) Serial.println("null ptr");
+    while (1);
+  }
+  getPtr()->overWrite();
+  semGive();
 }
 
 ////////////////////////////////////////////////
@@ -33,7 +58,14 @@ void MultiModeCtrl::copySettings(uint8_t dest, int8_t source)
   {
     return;
   }
+  if (!semTake())
+  {
+    Serial.println("MMC svc semtake failed");
+    if (sem == NULL) Serial.println("null ptr");
+    while (1);
+  }
   copySettings(getPtr(dest), getPtr(source));
+  semGive();
 }
 
 
@@ -45,6 +77,12 @@ void MultiModeCtrl::copySettings(std::shared_ptr<ControlObject> pDest,
     return;
   }
 
+  if (!semTake())
+  {
+    Serial.println("MMC svc semtake failed");
+    if (sem == NULL) Serial.println("null ptr");
+    while (1);
+  }
   LockState tmpState(pDest->getLockState());
   // TODO: compare number of control vals
   pDest->lock();
@@ -55,4 +93,5 @@ void MultiModeCtrl::copySettings(std::shared_ptr<ControlObject> pDest,
   {
     pDest->reqUnlock();
   }
+  semGive();
 }

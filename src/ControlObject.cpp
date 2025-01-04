@@ -1,5 +1,8 @@
 #include <ControlObject.h>
 
+#define SEM_TIMEOUT ((TickType_t)1)
+
+
 ////////////////////////////////////////////////
 // Sets LockVal to current (measured) real value regardless of LockState
 void ControlObject::overWrite()
@@ -14,7 +17,28 @@ void ControlObject::overWrite()
   }
 }
 
-LockState ControlObject::getLockState(void) { return lockState; }
+bool ControlObject::semTake()
+{
+  return (pdTRUE == xSemaphoreTakeRecursive(sem, SEM_TIMEOUT));
+}
+
+void ControlObject::semGive()
+{
+  xSemaphoreGiveRecursive(sem);
+}
+
+LockState ControlObject::getLockState(void)
+{
+  if (!semTake())
+  {
+    Serial.println("ctl getlockstate semtake failed");
+    while (1);
+  }
+  LockState ret = lockState;
+  semGive();
+  return ret;
+}
+
 void ControlObject::setMin(uint16_t min) { pADC->setMin(min); }
 void ControlObject::setMax(uint16_t max) { pADC->setMax(max); }
 
@@ -25,32 +49,61 @@ uint16_t ControlObject::getMax(void) { return pADC->getMax(); }
 // Lock the control at its current value if it isn't already locked
 void ControlObject::lock()
 {
-  if (lockState == STATE_UNLOCKED)
+  if (!semTake())
   {
-    (void)read();
+    Serial.println("ctl lock semtake failed");
+    while (1);
   }
-  lockState = STATE_LOCKED;
+
+  if (lockState != STATE_LOCKED)
+  {
+    lockState = STATE_LOCKED;
+  }
+
+  // Serial.printf("%p locked @ %u\n", this, lockCtrlVal);
+  semGive();
 }
 
 ////////////////////////////////////////////////
 // Activates the control; it can now be unlocked
 LockState ControlObject::reqUnlock()
 {
+  LockState ret;
+  if (!semTake())
+  {
+    Serial.println("ctl unlock semtake failed");
+    while (1);
+  }
   if (lockState == STATE_LOCKED)
   {
     lockState = STATE_UNLOCK_REQUESTED;
+    pADC->reset();
+    read();
   }
+  ret = lockState;
+  semGive();
 
-  read();
-
-  return lockState;
+  return ret;
 }
 
 ////////////////////////////////////////////////
 // Ignore current reading, overwrite the lock value with jamVal
 void ControlObject::setLockVal(int16_t jamVal)
 {
+  if (!semTake())
+  {
+    Serial.println("ctl setval semtake failed");
+    while (1);
+  }
+  uint16_t tmpVal = lockCtrlVal;
+  LockState tmpState = lockState;
+  lockState = STATE_LOCKED;
   lockCtrlVal = jamVal;
+  if (tmpState != STATE_LOCKED)
+  {
+    lockState = STATE_UNLOCK_REQUESTED;
+  }
+  semGive();
 }
 
 ////////////////////////////////////////////////
@@ -72,10 +125,15 @@ uint16_t ControlObject::controlValToRawVal(uint16_t tgtVal)
 uint16_t ControlObject::read(void)
 {
   service();
-  currentRawVal = pADC->read();
+  if (!semTake())
+  {
+    Serial.println("ctl read semtake failed");
+    while (1);
+  }
 
   if (lockState == STATE_LOCKED)
   {
+    semGive();
     return lockCtrlVal;
   }
 
@@ -86,6 +144,7 @@ uint16_t ControlObject::read(void)
     if (lockState == STATE_UNLOCK_REQUESTED)
     {
       lockState = STATE_UNLOCKED;
+      // Serial.printf("%p unlocked @ %u\n", this, lockCtrlVal);
     }
   }
 
@@ -95,7 +154,7 @@ uint16_t ControlObject::read(void)
     {
       uint16_t tgtRawValue = controlValToRawVal(currentControlVal);
       // Make sure you're part way into the higher value before switching
-      if ((float)((float)currentRawVal - (float)tgtRawValue) / (float)tgtRawValue >= DEFAULT_THRESHOLD)
+      if ((((float)currentRawVal - (float)tgtRawValue) / (float)tgtRawValue) > DEFAULT_THRESHOLD)
       {
         lockCtrlVal = currentControlVal;
       }
@@ -104,18 +163,26 @@ uint16_t ControlObject::read(void)
     {
       uint16_t tgtRawValue = controlValToRawVal(lockCtrlVal);
       // Make sure you're part way into the lower value before switching
-      if ((float)((float)tgtRawValue - (float)currentRawVal) / (float)tgtRawValue >= DEFAULT_THRESHOLD)
+      if ((((float)tgtRawValue - (float)currentRawVal) / (float)tgtRawValue) > DEFAULT_THRESHOLD)
       {
         lockCtrlVal = currentControlVal;
       }
     }
   }
 
+  semGive();
   return lockCtrlVal;
 }
 
 void ControlObject::service(void)
 {
+  if (!semTake())
+  {
+    Serial.println("ctl svc semtake failed");
+    while (1);
+  }
   pADC->service();
+  currentRawVal = pADC->read();
+  semGive();
 }
 

@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <ADC_Object.h>
 #include <ControlObject.h>
+#include <freertos/semphr.h>
 
 ////////////////////////////////////////////////
 //
@@ -10,108 +11,173 @@
 // single ADC channel
 class MultiModeCtrl
 {
+private:
+  SemaphoreHandle_t sem;
+  volatile uint8_t activeIndex;
   uint8_t numModes;
-  std::shared_ptr<ControlObject> pActiveCtrl;
+
   std::vector<std::shared_ptr<ControlObject>> pVirtualCtrls;
 
   std::shared_ptr<ControlObject> getPtr(int8_t idx = -1)
   {
     if (idx == -1)
     {
-      return pActiveCtrl;
+      return pVirtualCtrls[activeIndex];
     }
 
-    return pVirtualCtrls.at(idx);
+    return pVirtualCtrls[idx];
   }
 
   friend class ControllerBank;
 
+  bool semTake()
+  {
+    return (pdTRUE == xSemaphoreTake(sem, 1));
+  }
+
+  void semGive()
+  {
+    xSemaphoreGive(sem);
+  }
+
+  void lock()
+  {
+    if (getPtr())
+    {
+      getPtr()->lock();
+    }
+  }
 public:
 
   MultiModeCtrl(ADC_Object *inAdc,
                 uint8_t  numModes,
                 uint16_t topOfRange,
                 uint16_t defaultVal = 0):
-      pActiveCtrl(nullptr),
       numModes(numModes)
   {
+    sem = xSemaphoreCreateMutex();
+    semTake();
     for (uint8_t mode = 0; mode < numModes; ++mode)
     {
       pVirtualCtrls.push_back(std::make_shared<ControlObject>(inAdc, topOfRange + 1, defaultVal));
     }
 
-    pActiveCtrl = pVirtualCtrls.at(0);
+    activeIndex = 0;
+    semGive();
   }
 
-    MultiModeCtrl(std::shared_ptr<ADC_Object>inAdc,
+  MultiModeCtrl(std::shared_ptr<ADC_Object>inAdc,
                 uint8_t  numModes,
                 uint16_t topOfRange,
                 uint16_t defaultVal = 0):
-      pActiveCtrl(nullptr),
       numModes(numModes)
   {
+    sem = xSemaphoreCreateMutex();
+    semTake();
     for (uint8_t mode = 0; mode < numModes; ++mode)
     {
       pVirtualCtrls.push_back(std::make_shared<ControlObject>(inAdc, topOfRange + 1, defaultVal));
     }
 
-    pActiveCtrl = pVirtualCtrls.at(0);
+    activeIndex = 0;
+    semGive();
+    // pActiveCtrl = pVirtualCtrls.at(0);
   }
 
   uint16_t read();
 
   void setControlMin(uint16_t min, int8_t mode = -1)
   {
+    if (!getPtr(mode))
+    {
+      return;
+    }
     getPtr(mode)->setMin(min);
   }
 
   void setControlMax(uint16_t max, int8_t mode = -1)
   {
+    if (!getPtr(mode))
+    {
+      return;
+    }
     getPtr(mode)->setMax(max);
   }
 
   int16_t getMin(int8_t mode = -1)
   {
+    if (!getPtr(mode))
+    {
+      return 0;
+    }
     return getPtr(mode)->getMin();
   }
 
   int16_t getMax(int8_t mode = -1)
   {
+    if (!getPtr(mode))
+    {
+      return 0;
+    }
     return getPtr(mode)->getMax();
   }
 
   LockState getLockState(int8_t mode = -1)
   {
+    if (!getPtr(mode))
+    {
+      return STATE_LOCKED;
+    }
     return getPtr(mode)->getLockState();
   }
 
   uint16_t getRange(int8_t mode = -1)
   {
+    if (!getPtr(mode))
+    {
+      return 0;
+    }
     return (getPtr(mode)->getMax() - getPtr(mode)->getMin());
   }
 
   void service();
   uint8_t getNumModes();
 
-  void selectMode(uint8_t mode)
+  void selectMode(uint8_t mode, bool reqUnlock = true)
   {
-    pActiveCtrl->lock();
-    pActiveCtrl = pVirtualCtrls.at(mode);
-  }
+    if (!semTake())
+    {
+      Serial.println("MMC selmode semtake failed");
+      while (1);
+    }
 
-  void reqUnlock()
-  {
-    pActiveCtrl->reqUnlock();
-  }
+    if (getPtr())
+    {
+      getPtr()->lock();
+    }
 
-  void lock()
-  {
-    pActiveCtrl->lock();
+    activeIndex = mode;
+    if (getPtr())
+    {
+      getPtr()->reqUnlock();
+    }
+
+    semGive();
   }
 
   void setLockVal(uint16_t jamVal, int8_t mode = -1)
   {
-    getPtr(mode)->setLockVal(jamVal);
+  if (!semTake())
+  {
+    Serial.println("MMC setval semtake failed");
+    while (1);
+  }
+    if (getPtr())
+    {
+      getPtr(mode)->setLockVal(jamVal);
+    }
+
+    semGive();
   }
 
   void setDefaults();

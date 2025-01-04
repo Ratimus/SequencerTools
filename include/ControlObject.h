@@ -4,6 +4,7 @@
 #include <memory>
 #include <ADC_Object.h>
 #include <vector>
+#include <freertos/semphr.h>
 
 ////////////////////////////////////////////////
 // UNLOCKED:         control value is whatever the current reading is
@@ -18,18 +19,23 @@ enum LockState
 };
 
 // Unlock control when within this percent difference from the lock value
-static const double  DEFAULT_THRESHOLD(0.05);
+static const double  DEFAULT_THRESHOLD(0.01);
 
 class ControlObject
 {
+private:
+  SemaphoreHandle_t sem;
+  bool semTake();
+  void semGive();
+
 protected:
-  LockState lockState;
-  uint16_t  lockCtrlVal;
+  volatile LockState lockState;
+  volatile uint16_t  lockCtrlVal;
 
-  uint16_t  currentRawVal;
+  volatile uint16_t  currentRawVal;
   uint16_t  numCtrlVals;
-
-  std::shared_ptr<ADC_Object> pADC;
+  bool smoothed;
+  std::shared_ptr<SmoothedADC> pADC;
 
 public:
 
@@ -41,6 +47,7 @@ public:
       lockCtrlVal(defaultControlVal)
   {
     pADC = std::make_shared<SmoothedADC>(std::shared_ptr<ADC_Object>(inADC), 100);
+    sem = xSemaphoreCreateRecursiveMutex();
   }
 
   ControlObject(std::shared_ptr<ADC_Object>inADC,
@@ -51,6 +58,7 @@ public:
       lockCtrlVal(defaultControlVal)
   {
     pADC = std::make_shared<SmoothedADC>(inADC, 100);
+    sem = xSemaphoreCreateRecursiveMutex();
   }
 
   uint16_t  getMin(void);

@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <MultimodeControl.h>
 #include <vector>
-
+#include <freertos/semphr.h>
 
 class ControllerBank
 {
@@ -14,6 +14,8 @@ class ControllerBank
   std::vector<MultiModeCtrl> controls;
   std::vector<uint8_t> positionMapping;
 
+  SemaphoreHandle_t sem;
+
 public:
   ControllerBank(uint8_t controlCount,
                  uint8_t modeCount):
@@ -22,6 +24,7 @@ public:
       modeCount(modeCount)
   {
     controls.reserve(controlCount);
+    sem = xSemaphoreCreateMutex();
   }
 
   void init(const uint8_t *pins,
@@ -47,6 +50,7 @@ public:
       controlCount(controlCount),
       modeCount(modeCount)
   {
+    sem = xSemaphoreCreateMutex();
     for (uint8_t n(0); n < controlCount; ++n)
     {
       controls.push_back(MultiModeCtrl(std::make_shared<ESP32_ADC_Channel>(pins[n]), modeCount, topOfRange));
@@ -59,6 +63,7 @@ public:
   //   topOfRange:   highest control value that you want to return
   ControllerBank(MCP_ADC* pADC, uint8_t channelCount, uint8_t modeCount, uint16_t topOfRange)
   {
+    sem = xSemaphoreCreateMutex();
     for (uint8_t n(0); n < channelCount; ++n)
     {
       controls.push_back(MultiModeCtrl(std::make_shared<MCP_Channel>(pADC, n), modeCount, topOfRange));
@@ -67,6 +72,7 @@ public:
 
   ControllerBank(std::shared_ptr<MCP_ADC>pADC, uint8_t channelCount, uint8_t modeCount, uint16_t topOfRange)
   {
+    sem = xSemaphoreCreateMutex();
     for (uint8_t n(0); n < channelCount; ++n)
     {
       controls.push_back(MultiModeCtrl(std::make_shared<MCP_Channel>(pADC, n), modeCount, topOfRange));
@@ -84,6 +90,7 @@ public:
                  uint16_t topOfRange)
   {
     std::shared_ptr<MCP_ADC>pADC(nullptr);
+
     switch (controlCount)
     {
       case 1:
@@ -185,58 +192,62 @@ public:
 
   void saveScene(void)
   {
-    for (uint8_t n(0); n < controlCount; ++n)
-    {
-      controls[getPositionMappedIndex(n)].lock();
-    }
+    selectScene(currentMode);
   }
 
   void selectScene(uint8_t sceneIdx, bool reqUnlock = true)
   {
-    saveScene();
+    xSemaphoreTake(sem, 20);
     currentMode = sceneIdx;
     for (uint8_t n(0); n < controlCount; ++n)
     {
-      controls[getPositionMappedIndex(n)].selectMode(currentMode);
-      if (reqUnlock)
-      {
-        controls[getPositionMappedIndex(n)].reqUnlock();
-      }
+      controls[getPositionMappedIndex(n)].selectMode(currentMode, reqUnlock);
     }
+    xSemaphoreGive(sem);
   }
 
   void service()
   {
+    xSemaphoreTake(sem, 10);
     for (uint8_t n(0); n < controlCount; ++n)
     {
       controls[getPositionMappedIndex(n)].service();
     }
+    xSemaphoreGive(sem);
   }
 
 
   uint16_t read(uint8_t controlIdx)
   {
-    return controls[getPositionMappedIndex(controlIdx)].read();
+    xSemaphoreTake(sem, 10);
+    uint16_t ret = controls[getPositionMappedIndex(controlIdx)].read();
+    xSemaphoreGive(sem);
+    return ret;
   }
 
-  void reqUnlock(int8_t controlIdx = -1)
-  {
-    if (controlIdx >= 0)
-    {
-      controls[getPositionMappedIndex(controlIdx)].reqUnlock();
-    }
-    else
-    {
-      for (uint8_t n(0); n < controlCount; ++n)
-      {
-        controls[getPositionMappedIndex(n)].reqUnlock();
-      }
-    }
-  }
+  // void reqUnlock(int8_t controlIdx = -1)
+  // {
+  //   xSemaphoreTake(sem, 10);
+  //   if (controlIdx >= 0)
+  //   {
+  //     controls[getPositionMappedIndex(controlIdx)].selectMode();
+  //   }
+  //   else
+  //   {
+  //     for (uint8_t n(0); n < controlCount; ++n)
+  //     {
+  //       controls[getPositionMappedIndex(n)].reqUnlock();
+  //     }
+  //   }
+  //   xSemaphoreGive(sem);
+  // }
 
   bool isLocked(uint8_t controlIdx)
   {
-    return (controls[getPositionMappedIndex(controlIdx)].getLockState() == STATE_UNLOCKED);
+    xSemaphoreTake(sem, 10);
+    bool ret = (controls[getPositionMappedIndex(controlIdx)].getLockState() != STATE_UNLOCKED);
+    xSemaphoreGive(sem);
+    return ret;
   }
 };
 //   void init(const uint8_t SPI_DATA_OUT, const uint8_t SPI_DATA_IN, const uint8_t SPI_CLK, const uint8_t ADC_CS);
