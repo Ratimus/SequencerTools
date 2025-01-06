@@ -138,6 +138,11 @@ public:
     }
   }
 
+  void setActiveLow(bool activeLow = true)
+  {
+    _pullup = activeLow;
+  }
+
 
   virtual bool peekGate(uint8_t gate) override
   {
@@ -151,6 +156,14 @@ public:
   {
     cli();
     bool ret(_gatesDiff & (1 << gate));
+    sei();
+    return ret;
+  }
+
+  virtual bool anyDiff()
+  {
+    cli();
+    bool ret = (_gatesDiff != 0);
     sei();
     return ret;
   }

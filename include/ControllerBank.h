@@ -225,23 +225,6 @@ public:
     return ret;
   }
 
-  // void reqUnlock(int8_t controlIdx = -1)
-  // {
-  //   xSemaphoreTake(sem, 10);
-  //   if (controlIdx >= 0)
-  //   {
-  //     controls[getPositionMappedIndex(controlIdx)].selectMode();
-  //   }
-  //   else
-  //   {
-  //     for (uint8_t n(0); n < controlCount; ++n)
-  //     {
-  //       controls[getPositionMappedIndex(n)].reqUnlock();
-  //     }
-  //   }
-  //   xSemaphoreGive(sem);
-  // }
-
   bool isLocked(uint8_t controlIdx)
   {
     xSemaphoreTake(sem, 10);
@@ -250,46 +233,3 @@ public:
     return ret;
   }
 };
-//   void init(const uint8_t SPI_DATA_OUT, const uint8_t SPI_DATA_IN, const uint8_t SPI_CLK, const uint8_t ADC_CS);
-//   void init(uint8_t *pins, uint8_t pinCount);
-
-
-// ControllerBank::ControllerBank(ControllerBank & proto):
-//   NUM_FADERS(proto.NUM_FADERS),
-//   NUM_BANKS(proto.NUM_BANKS),
-//   bankIdx(proto.bankIdx),
-//   ONE_OVER_ADC_MAX(proto.ONE_OVER_ADC_MAX)
-// {
-//   std::copy(proto.sliderMap.begin(), proto.sliderMap.end(), std::back_insert_iterator(this->sliderMap));
-
-//   for (auto fader: proto.faderBank)
-//   {
-//     std::copy(proto.faderBank.begin(), proto.faderBank.end(), std::back_insert_iterator(this->faderBank));
-//   }
-// }
-
-// ControllerBank::ControllerBank(uint8_t numFaders,
-//                                uint8_t numBanks,
-//                                const uint8_t sliderMapping[]):
-//   NUM_FADERS(numFaders),
-//   NUM_BANKS(numBanks)
-// {
-//   faderBank.reserve(NUM_BANKS);
-//   for (auto n = 0; n < NUM_FADERS; ++n)
-//   {
-//     sliderMap.push_back(sliderMapping[n]);
-//   }
-// }
-
-// void ControllerBank::init(MCP3208 *pMCP3208)
-// {
-//   for (uint8_t ch(0); ch < NUM_FADERS; ++ch)
-//   {
-//     faderBank.push_back(std::make_shared<MultiModeCtrl>(new MCP_Channel(pMCP3208, ch, 12),
-//                                                         NUM_BANKS));
-//     faderBank[ch]->setDefaults();
-//     faderBank[ch]->saveActiveCtrl(NUM_FADERS - 1 - ch);
-//     dbprintf("Fader %u initialized\n", ch);
-//   }
-//   ONE_OVER_ADC_MAX = 1.0f / faderBank[0]->getMax();
-// }

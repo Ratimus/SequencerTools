@@ -22,6 +22,7 @@
 #include <Arduino.h>
 #include <MagicButton.h>
 #include <memory>
+#include <RatFuncs.h>
 
 // ----------------------------------------------------------------------------
 
@@ -48,15 +49,25 @@ class ClickEncoder
 public:
 
   // Constructor
-  ClickEncoder(uint8_t A,
-               uint8_t B,
-               uint8_t BTN,
+  ClickEncoder(int8_t A,
+               int8_t B,
+               int8_t BTN,
                uint8_t stepsPerNotch,
                bool usePullResistor);
 
+  virtual bool readA()
+  {
+    return ((bool)directRead(pinA) != activeLow);
+  }
+
+  virtual bool readB()
+  {
+    return ((bool)directRead(pinB) != activeLow);
+  }
+
   // Call every 1 ms in ISR
-  void    service(void);
-  void    updateButton(void);
+  virtual void service(void);
+  void updateButton(void);
 
   // Get current state and free for further updates
   int16_t      getClickCount  (void);
@@ -68,7 +79,7 @@ public:
 
   void setAccelerationEnabled(const bool &a);
 
-private:
+protected:
 
   const    uint8_t  pinA;
   const    uint8_t  pinB;
@@ -88,6 +99,67 @@ private:
 
   std::shared_ptr<MagicButton> hwButton;
   volatile ButtonState encBtnState;
+};
+
+
+class MuxedEncoder : public ClickEncoder
+{
+  static inline std::shared_ptr<HW_Mux> _SHARED_MUX = NULL;
+  const uint16_t _BITMASK[2];
+  uint16_t _REGISTER;
+
+public:
+
+  virtual bool readA() override
+  {
+    if (_REGISTER & _BITMASK[0])
+    {
+      return true;
+    }
+
+    return false;
+  }
+
+  virtual bool readB() override
+  {
+    if (_REGISTER & _BITMASK[1])
+    {
+      return true;
+    }
+
+    return false;
+  }
+
+  MuxedEncoder(const uint8_t * const pinNums, uint8_t stepsPerNotch):
+      ClickEncoder(-1, -1, -1, stepsPerNotch, true),
+      _BITMASK({uint16_t((uint16_t)1 << pinNums[0]), uint16_t((uint16_t)1 << pinNums[1])})
+  {
+    hwButton = std::make_shared<MuxedButton>(pinNums[2]);
+  }
+
+  void init(void)
+  {
+    if (readA())
+    {
+      last = 3;
+    }
+
+    if (readB())
+    {
+      last ^= 1;
+    };
+  }
+
+  static void setMux(HW_Mux *pMux)
+  {
+    _SHARED_MUX = std::shared_ptr<HW_Mux>(pMux);
+  }
+
+  virtual void service() override
+  {
+    _REGISTER = _SHARED_MUX->getReg();
+    ClickEncoder::service();
+  }
 };
 
 // ----------------------------------------------------------------------------

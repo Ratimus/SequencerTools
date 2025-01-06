@@ -44,9 +44,9 @@ const uint8_t  ENC_ACCEL_DEC (2);
 
 // ----------------------------------------------------------------------------
 
-ClickEncoder::ClickEncoder(uint8_t A,
-                           uint8_t B,
-                           uint8_t BTN,
+ClickEncoder::ClickEncoder(int8_t A,
+                           int8_t B,
+                           int8_t BTN,
                            uint8_t stepsPerNotch,
                            bool usePulllResistor) :
    doubleClickEnabled(true),
@@ -59,19 +59,22 @@ ClickEncoder::ClickEncoder(uint8_t A,
    pinB(B),
    activeLow(usePulllResistor)
 {
-  hwButton = std::make_shared<MagicButton>(BTN, activeLow, doubleClickEnabled);
-  uint8_t configType = activeLow ? INPUT_PULLUP : INPUT;
-  pinMode(pinA,   configType);
-  pinMode(pinB,   configType);
-
-  if ((bool)directRead(pinA) != activeLow)
+  if (pinA != -1)
   {
-    last = 3;
-  }
+    hwButton = std::make_shared<MagicButton>(BTN, activeLow, doubleClickEnabled);
+    uint8_t configType = activeLow ? INPUT_PULLUP : INPUT;
+    pinMode(pinA,   configType);
+    pinMode(pinB,   configType);
 
-  if ((bool)directRead(pinB) != activeLow)
-  {
-    last ^= 1;
+    if ((bool)directRead(pinA) != activeLow)
+    {
+      last = 3;
+    }
+
+    if ((bool)directRead(pinB) != activeLow)
+    {
+      last ^= 1;
+    }
   }
 }
 
@@ -113,9 +116,8 @@ void ClickEncoder::service(void)
     moved = true;
   }
 #elif ENC_DECODER == ENC_NORMAL
-  int8_t curr = ((bool)directRead(pinA) != activeLow) ? 3 : 0;
-
-  if ((bool)directRead(pinB) != activeLow)
+  int8_t curr = readA() ? 3 : 0;
+  if (readB())
   {
     curr ^= 1;
   }
