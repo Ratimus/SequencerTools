@@ -41,7 +41,7 @@ void MultiModeCtrl::setDefaults()
 {
   if (!semTake())
   {
-    Serial.println("MMC svc semtake failed");
+    Serial.println("MMC set defaults semtake failed");
     if (sem == NULL) Serial.println("null ptr");
     while (1);
   }
@@ -60,7 +60,7 @@ void MultiModeCtrl::copySettings(uint8_t dest, int8_t source)
   }
   if (!semTake())
   {
-    Serial.println("MMC svc semtake failed");
+    Serial.println("MMC copy ints semtake failed");
     if (sem == NULL) Serial.println("null ptr");
     while (1);
   }
@@ -79,7 +79,7 @@ void MultiModeCtrl::copySettings(std::shared_ptr<ControlObject> pDest,
 
   if (!semTake())
   {
-    Serial.println("MMC svc semtake failed");
+    Serial.println("MMC copy ptrs semtake failed");
     if (sem == NULL) Serial.println("null ptr");
     while (1);
   }

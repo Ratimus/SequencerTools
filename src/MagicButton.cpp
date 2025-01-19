@@ -41,7 +41,6 @@ void MagicButton::service()
 
   long timeSinceChange = timeStamp - debounceTS;
 
-  cli();
   switch(state[0])
   {
     // Register initial button state change
@@ -159,7 +158,6 @@ void MagicButton::service()
     default:
       break;
   }
-  sei();
 
 #ifdef DEBUG_BUTTON_STATES
 
@@ -216,14 +214,13 @@ void MagicButton::service()
 // HELD or PRESSED will be returned on each call
 ButtonState MagicButton::read(void)
 {
+  service();
   ButtonState retVal;
-  cli();
   if (state[0] == ButtonState::Released)
   {
     outputCleared = true;
   }
   retVal = state[1];
-  sei();
   return retVal;
 }
 

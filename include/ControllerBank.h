@@ -208,7 +208,12 @@ public:
 
   void service()
   {
-    xSemaphoreTake(sem, 10);
+    if (!xSemaphoreTake(sem, 10))
+    {
+      assert(false);
+      return;
+    }
+
     for (uint8_t n(0); n < controlCount; ++n)
     {
       controls[getPositionMappedIndex(n)].service();

@@ -33,113 +33,62 @@ public:
     ClickEncoderInterface &EncoderInterface,
     RotaryEvent &Rotary) :
       encoderInterface(EncoderInterface),
-      eventSource(Rotary),
-      _evt(encEvnts::NUM_ENC_EVNTS)
+      eventSource(Rotary)
   {
     _evt = encoderInterface.getEvent();
   }
 
-  int available(void) override
-  {
-    return (peek() != -1);
-  }
-
-  int peek(void) override
-  {
-    switch(_evt)
-    {
-      case encEvnts::Click:
-      {
-        return options->navCodes[enterCmd].ch;
-      }
-
-      case encEvnts::DblClick:
-      {
-        return options->navCodes[escCmd].ch;
-      }
-
-      case encEvnts::Right:
-      case encEvnts::ShiftRight:
-      {
-        return options->navCodes[downCmd].ch;
-      }
-
-      case encEvnts::Left:
-      case encEvnts::ShiftLeft:
-      {
-        return options->navCodes[upCmd].ch;
-      }
-
-      case encEvnts::ClickHold:
-      {
-        return options->navCodes[escCmd].ch;
-      }
-
-      case encEvnts::Hold:
-      case encEvnts::Press:
-      {
-        return options->navCodes[idxCmd].ch;  // Experiment; I don't even know what this does
-      }
-
-      case encEvnts::NUM_ENC_EVNTS:
-      default:
-      {
-        return -1;
-      }
-    }
-  }
-
-  int read() override
-  {
-    _evt = encoderInterface.getEvent();
-    const int ret = peek();
-
-    if (ret == options->navCodes[idxCmd].ch)
-    {
-      eventSource.registerEvent(RotaryEvent::EventType::BUTTON_LONG_PRESSED);
-    }
-
-    if (ret == options->navCodes[escCmd].ch)
-    {
-      eventSource.registerEvent(RotaryEvent::EventType::BUTTON_DOUBLE_CLICKED);
-    }
-
-    if (ret == options->navCodes[upCmd].ch)
-    {
-      eventSource.registerEvent(RotaryEvent::EventType::ROTARY_CCW);
-    }
-
-    if (ret == options->navCodes[downCmd].ch)
-    {
-      eventSource.registerEvent(RotaryEvent::EventType::ROTARY_CW);
-    }
-
-    if (ret == options->navCodes[escCmd].ch)
-    {
-      eventSource.registerEvent(RotaryEvent::EventType::BUTTON_DOUBLE_CLICKED);
-    }
-
-    if (ret == options->navCodes[enterCmd].ch)
-    {
-      eventSource.registerEvent(RotaryEvent::EventType::BUTTON_CLICKED);
-    }
-
-    return ret;
-  }
+  int peek(void) override { return eventSource.peek(); }
+  int available(void) override { return peek() != 0; }
+  int read() override { return eventSource.read(); }
 
   void flush() override
   {
     encoderInterface.flush();
-    _evt = encEvnts::NUM_ENC_EVNTS;
+    eventSource.flush();
   }
 
-  // So much for the Interface Segregation principle...
   size_t write(uint8_t v) override
   {
+    eventSource.registerEvent(static_cast<RotaryEvent::EventType>(v));
     return 1;
   }
 
-  void service() { encoderInterface.service(); }
+  void service()
+  {
+    encoderInterface.service();
+    _evt = encoderInterface.getEvent();
+    switch(_evt)
+    {
+      case encEvnts::Click:
+      {
+        eventSource.registerEvent(RotaryEvent::EventType::BUTTON_CLICKED);
+        break;
+      }
+      case encEvnts::DblClick:
+      {
+        eventSource.registerEvent(RotaryEvent::EventType::BUTTON_DOUBLE_CLICKED);
+        break;
+      }
+      case encEvnts::Hold:
+      {
+        eventSource.registerEvent(RotaryEvent::EventType::BUTTON_LONG_PRESSED);
+        break;
+      }
+      case encEvnts::Left:
+      {
+        eventSource.registerEvent(RotaryEvent::EventType::ROTARY_CCW);
+        break;
+      }
+      case encEvnts::Right:
+      {
+        eventSource.registerEvent(RotaryEvent::EventType::ROTARY_CW);
+        break;
+      }
+      default:
+      break;
+    }
+  }
 };
 }//namespace Menu
 

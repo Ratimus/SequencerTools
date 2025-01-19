@@ -26,21 +26,20 @@
 
 // ----------------------------------------------------------------------------
 
-#define ENC_NORMAL        (1 << 1)   // use Peter Danneger's decoder
-#define ENC_FLAKY         (1 << 2)   // use Table-based decoder
+#define ENC_NORMAL        BIT1   // use Peter Danneger's decoder
+#define ENC_FLAKY         BIT2   // use Table-based decoder
 
 // ----------------------------------------------------------------------------
 
 #ifndef ENC_DECODER
-// #  define ENC_DECODER     ENC_FLAKY
+#  define ENC_DECODER     ENC_FLAKY
+#  ifndef ENC_HALFSTEP
+#    define ENC_HALFSTEP  0 // use table for half step per default
+#  endif
+#else
 #  define ENC_DECODER     ENC_NORMAL
 #endif
 
-#if ENC_DECODER == ENC_FLAKY
-#  ifndef ENC_HALFSTEP
-#    define ENC_HALFSTEP  1        // use table for half step per default
-#  endif
-#endif
 
 // ----------------------------------------------------------------------------
 
@@ -52,8 +51,8 @@ public:
   ClickEncoder(int8_t A,
                int8_t B,
                int8_t BTN,
-               uint8_t stepsPerNotch,
-               bool usePullResistor);
+               uint8_t stepsPerNotch = 4,
+               bool usePullResistor  = true);
 
   virtual bool readA()
   {
@@ -73,9 +72,20 @@ public:
   int16_t      getClickCount  (void);
   ButtonState  readButtonState(void);
 
-  void setDoubleClickEnabled(const bool &d) { doubleClickEnabled = d; }
-  const bool getDoubleClickEnabled() { return doubleClickEnabled; }
-  const bool getAccelerationEnabled() { return accelerationEnabled; }
+  void setDoubleClickEnabled(const bool &d)
+  {
+    doubleClickEnabled = d;
+  }
+
+  const bool getDoubleClickEnabled()
+  {
+    return doubleClickEnabled;
+  }
+
+  const bool getAccelerationEnabled()
+  {
+    return accelerationEnabled;
+  }
 
   void setAccelerationEnabled(const bool &a);
 
@@ -91,9 +101,11 @@ protected:
 
   bool    accelerationEnabled;
   uint8_t steps;
+
 #if ENC_DECODER != ENC_NORMAL
   static const int8_t table[16];
 #endif
+
   bool btnStateCleared;
   bool doubleClickEnabled;
 
@@ -130,9 +142,10 @@ public:
     return false;
   }
 
-  MuxedEncoder(const uint8_t * const pinNums, uint8_t stepsPerNotch):
+  MuxedEncoder(const uint8_t * const pinNums,
+               uint8_t stepsPerNotch):
       ClickEncoder(-1, -1, -1, stepsPerNotch, true),
-      _BITMASK({uint16_t((uint16_t)1 << pinNums[0]), uint16_t((uint16_t)1 << pinNums[1])})
+      _BITMASK{uint16_t((uint16_t)1 << pinNums[0]), uint16_t((uint16_t)1 << pinNums[1])}
   {
     hwButton = std::make_shared<MuxedButton>(pinNums[2]);
   }

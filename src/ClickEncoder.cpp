@@ -27,20 +27,20 @@ const uint8_t  ENC_ACCEL_DEC (2);
 // ----------------------------------------------------------------------------
 
 #if ENC_DECODER != ENC_NORMAL
-#  ifdef ENC_HALFSTEP
-     // decoding table for hardware with flaky notch (half resolution)
-     const int8_t ClickEncoder::table[16] __attribute__((__progmem__))
-     {
-       0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, -1, 0, 0
-     };
-#  else
-     // decoding table for normal hardware
-     const int8_t ClickEncoder::table[16] __attribute__((__progmem__))
-     {
-       0, 1, -1, 0, -1, 0, 0, 1, 1, 0, 0, -1, 0, -1, 1, 0
-     };
-#  endif // not def ENC_HALFSTEP
-#endif   // ENC_DECODER != ENC_NORMAL
+#    if ENC_HALFSTEP
+        // Decoding table for hardware with flaky notch (half resolution)
+        const int8_t ClickEncoder::table[16]  // __attribute__((__progmem__))
+        {
+          0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, -1, 0, 0
+        };
+#   else
+        // Decoding table for normal hardware
+        const int8_t ClickEncoder::table[16]  //  __attribute__((__progmem__))
+        {
+          0, 1, -1, 0, -1, 0, 0, 1, 1, 0, 0, -1, 0, -1, 1, 0
+        };
+#   endif   /* ENC_HALFSTEP */
+#endif      /* ENC_DECODER != ENC_NORMAL */
 
 // ----------------------------------------------------------------------------
 
@@ -50,7 +50,7 @@ ClickEncoder::ClickEncoder(int8_t A,
                            uint8_t stepsPerNotch,
                            bool usePulllResistor) :
    doubleClickEnabled(true),
-   accelerationEnabled(true),
+   accelerationEnabled(false),
    delta(0),
    last(0),
    acceleration(0),
@@ -68,12 +68,12 @@ ClickEncoder::ClickEncoder(int8_t A,
 
     if ((bool)directRead(pinA) != activeLow)
     {
-      last = 3;
+      last = (BIT0 | BIT1);
     }
 
     if ((bool)directRead(pinB) != activeLow)
     {
-      last ^= 1;
+      last ^= BIT0;
     }
   }
 }
@@ -95,44 +95,44 @@ void ClickEncoder::service(void)
 
   bool moved = false;
 
-  cli();
+  // cli();
 #if ENC_DECODER == ENC_FLAKY
   last = (last << 2) & 0x0F;
 
-  if (digitalRead(pinA) == pinsActive)
+  if (!readA())
   {
-    last |= 2;
+    last |= BIT1;
   }
 
-  if (digitalRead(pinB) == pinsActive)
+  if (!readB())
   {
-    last |= 1;
+    last |= BIT0;
   }
 
-  uint8_t tbl = pgm_read_byte(&table[last]);
-  if (tbl)
+  if (table[last])
   {
-    delta += tbl;
+    delta += table[last];
     moved = true;
   }
 #elif ENC_DECODER == ENC_NORMAL
-  int8_t curr = readA() ? 3 : 0;
+  int8_t curr = readA() ? (BIT0 | BIT1) : 0;
   if (readB())
   {
-    curr ^= 1;
+    curr ^= BIT0;
   }
 
   int8_t diff = last - curr;
 
-  if (diff & 1)             // bit 0 = step
+  if (diff & BIT0)             // bit 0 = step
   {
     last   = curr;
-    delta += (diff & 2) - 1; // bit 1 = direction (+/-)
+    delta += (diff & BIT1) - 1; // bit 1 = direction (+/-)
     moved  = true;
   }
 #else
 # error "Error: define ENC_DECODER to ENC_NORMAL or ENC_FLAKY"
 #endif // ENC_DECODER == ENC_FLAKY
+  // sei();
 
   if (accelerationEnabled && moved)
   {
@@ -142,7 +142,6 @@ void ClickEncoder::service(void)
       acceleration += ENC_ACCEL_INC;
     }
   }
-  sei();
   hwButton->service();
 }
 
@@ -166,19 +165,31 @@ void ClickEncoder::updateButton()
 int16_t ClickEncoder::getClickCount(void)
 {
   updateButton();
+  // cli();
+  int16_t val = delta;
 
-  int16_t val;
+  if (steps == 2)
+  {
+    delta = val & BIT0;
+  }
+  else if (steps == 4)
+  {
+    delta = val & (BIT0 | BIT1);
+  }
+  else
+  {
+    delta = 0; // default to 1 step per notch
+  }
+  // sei();
 
-  cli();
-  val = delta;
-
-  if (steps == 2) delta = val & 1;
-  else if (steps == 4) delta = val & 3;
-  else delta = 0; // default to 1 step per notch
-  sei();
-
-  if (steps == 4) val >>= 2;
-  if (steps == 2) val >>= 1;
+  if (steps == 4)
+  {
+    val >>= 2;
+  }
+  else if (steps == 2)
+  {
+    val >>= 1;
+  }
 
   int16_t r = 0;
   int16_t accel = ((accelerationEnabled) ? (acceleration >> 8) : 0);

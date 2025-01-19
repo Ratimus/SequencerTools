@@ -7,12 +7,13 @@
 #include "ClickEncoderInterface.h"
 
 // Constructor
-ClickEncoderInterface::ClickEncoderInterface(ClickEncoder *Enc, int sense):
+ClickEncoderInterface::ClickEncoderInterface(ClickEncoder *Enc, int8_t sense):
   pEncoder(Enc),
   sensivity(sense),
   pos(0),
   oldPos(0)
 {
+  assert(sensivity != 0);
   update();
 }
 
@@ -21,25 +22,32 @@ ClickEncoderInterface::ClickEncoderInterface(
     uint8_t A,
     uint8_t B,
     uint8_t BTN,
-    int sense,
+    int8_t sense,
     uint8_t stepsPerNotch,
     bool usePullResistors):
-  pEncoder(std::make_shared<ClickEncoder>(A, B, BTN, stepsPerNotch, usePullResistors))
-{;}
+  pEncoder(std::make_shared<ClickEncoder>(A, B, BTN, stepsPerNotch, usePullResistors)),
+  sensivity(sense),
+  pos(0),
+  oldPos(0)
+{
+  assert(sensivity != 0);
+  update();
+}
 
 
 encEvnts ClickEncoderInterface::getEvent(void)
 {
   static bool heldClicked(0);
+  // encEvnts ret = encEvnts::NUM_ENC_EVNTS
   ButtonState prevState = btnState;
 
   update();
 
   if (pos != oldPos)
   {
-    int d = pos - oldPos;
+    int deltaPos = pos - oldPos;
 
-    if (d <= -sensivity)                 // Right Click
+    if (deltaPos <= -sensivity)          // Right Click
     {
       oldPos -= sensivity;
       if (btnState == ButtonState::Held) // Hold+Turn
@@ -50,7 +58,7 @@ encEvnts ClickEncoderInterface::getEvent(void)
       return encEvnts::Right;
     }
 
-    if (d >= sensivity)             // Left Click
+    if (deltaPos >= sensivity)           // Left Click
     {
       oldPos += sensivity;
       if (btnState == ButtonState::Held) // Hold+Turn
@@ -63,41 +71,45 @@ encEvnts ClickEncoderInterface::getEvent(void)
     }
   }
 
-  if (prevState != btnState)
+  if (prevState == btnState)
   {
-    if (btnState == ButtonState::Open)
-    {
-      if (prevState == ButtonState::Clicked)
-      {
-        return encEvnts::Click;
-      }
-
-      if (prevState == ButtonState::DoubleClicked)
-      {
-        return encEvnts::DblClick;
-      }
-
-      if (prevState == ButtonState::ClickedAndHeld)
-      {
-        return encEvnts::ClickHold;
-      }
-
-      if (!heldClicked)
-      {
-        if (prevState == ButtonState::Pressed)
-        {
-          return encEvnts::Press;
-        }
-
-        return encEvnts::Hold;
-      }
-
-      heldClicked = 0;
-    }
+    return encEvnts::None;
   }
 
-  return encEvnts::NUM_ENC_EVNTS;
+  if (btnState != ButtonState::Open)
+  {
+    return encEvnts::None;
+  }
+
+  if (prevState == ButtonState::Clicked)
+  {
+    return encEvnts::Click;
+  }
+
+  if (prevState == ButtonState::DoubleClicked)
+  {
+    return encEvnts::DblClick;
+  }
+
+  if (prevState == ButtonState::ClickedAndHeld)
+  {
+    return encEvnts::ClickHold;
+  }
+
+  if (!heldClicked)
+  {
+    if (prevState == ButtonState::Pressed)
+    {
+      return encEvnts::Press;
+    }
+
+    return encEvnts::Hold;
+  }
+
+  heldClicked = 0;
+  return encEvnts::None;
 }
+
 
 void ClickEncoderInterface::flush()
 {
