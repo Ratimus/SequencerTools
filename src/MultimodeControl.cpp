@@ -11,27 +11,27 @@ uint8_t MultiModeCtrl::getNumModes()
 // Returns the value of the currently selected VirtualCtrl
 uint16_t MultiModeCtrl::read()
 {
-  if (!semTake())
+  if (!lock())
   {
     Serial.println("MMC read semtake failed");
-    if (sem == NULL) Serial.println("null ptr");
+    if (mutex == NULL) Serial.println("null ptr");
     while (1);
   }
   uint16_t ret = getPtr()->read();
-  semGive();
+  unlock();
   return ret;
 }
 
 void MultiModeCtrl::service()
 {
-  if (!semTake())
+  if (!lock())
   {
     Serial.println("MMC svc semtake failed");
-    if (sem == NULL) Serial.println("null ptr");
+    if (mutex == NULL) Serial.println("null ptr");
     while (1);
   }
   getPtr()->service();
-  semGive();
+  unlock();
 }
 
 ////////////////////////////////////////////////
@@ -39,14 +39,14 @@ void MultiModeCtrl::service()
 // (measured) value regardless of LockState
 void MultiModeCtrl::setDefaults()
 {
-  if (!semTake())
+  if (!lock())
   {
     Serial.println("MMC set defaults semtake failed");
-    if (sem == NULL) Serial.println("null ptr");
+    if (mutex == NULL) Serial.println("null ptr");
     while (1);
   }
   getPtr()->overWrite();
-  semGive();
+  unlock();
 }
 
 ////////////////////////////////////////////////
@@ -58,14 +58,14 @@ void MultiModeCtrl::copySettings(uint8_t dest, int8_t source)
   {
     return;
   }
-  if (!semTake())
+  if (!lock())
   {
     Serial.println("MMC copy ints semtake failed");
-    if (sem == NULL) Serial.println("null ptr");
+    if (mutex == NULL) Serial.println("null ptr");
     while (1);
   }
   copySettings(getPtr(dest), getPtr(source));
-  semGive();
+  unlock();
 }
 
 
@@ -77,15 +77,15 @@ void MultiModeCtrl::copySettings(std::shared_ptr<ControlObject> pDest,
     return;
   }
 
-  if (!semTake())
+  if (!lock())
   {
     Serial.println("MMC copy ptrs semtake failed");
-    if (sem == NULL) Serial.println("null ptr");
+    if (mutex == NULL) Serial.println("null ptr");
     while (1);
   }
   LockState tmpState(pDest->getLockState());
   // TODO: compare number of control vals
-  pDest->lock();
+  pDest->lockControl();
   pDest->setLockVal(pSource->read());
   pDest->setMin(pSource->getMin());
   pDest->setMax(pSource->getMax());
@@ -93,5 +93,5 @@ void MultiModeCtrl::copySettings(std::shared_ptr<ControlObject> pDest,
   {
     pDest->reqUnlock();
   }
-  semGive();
+  unlock();
 }

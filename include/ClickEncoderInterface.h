@@ -9,7 +9,7 @@
 
 #include <Arduino.h>
 #include <memory>
-#include "ClickEncoder.h"
+#include <ClickEncoder.h>
 #include <MagicButton.h>
 
 enum encEvnts
@@ -29,27 +29,50 @@ enum encEvnts
 
 class ClickEncoderInterface
 {
-private:
+protected:
 
   std::shared_ptr<ClickEncoder> pEncoder;  // Associated hardware clickEncoder
-  volatile ButtonState          btnState;  // Variable to store the state of the button
-  int8_t       sensivity;
 
+  volatile ButtonState          btnState;  // Variable to store the state of the button
   volatile int oldPos;
   volatile int pos;
 
-  inline void update()
-  {
-    pos     += pEncoder->getClickCount();
-    btnState = pEncoder->readButtonState();
-  }
+  SemaphoreHandle_t mutex;
+  bool heldClicked;
 
 public:
 
-  // Constructor using ref. to existing encoder driver object
-  ClickEncoderInterface(ClickEncoder *Enc, int8_t sense);
+  bool lock()
+  {
+    if (xSemaphoreTakeRecursive(mutex, 10) == pdTRUE)
+    {
+      return true;
+    }
 
-  // Constructor to create and manage its own encoder driver object
+    return false;
+  }
+
+  void unlock()
+  {
+    xSemaphoreGiveRecursive(mutex);
+  }
+
+  inline void init()
+  {
+    if (!lock())
+    {
+      Serial.println("shit, not initting");
+      return;
+    }
+    pos     += pEncoder->readPosition();
+    btnState = pEncoder->readButton();
+    unlock();
+  }
+
+  // Constructor using ref. to existing encoder driver object
+  explicit ClickEncoderInterface(ClickEncoder *Enc, int8_t sense);
+  explicit ClickEncoderInterface(HW_InterruptedClickEncoder *Enc, int8_t sense);
+
   ClickEncoderInterface(uint8_t A,
                         uint8_t B,
                         uint8_t BTN,
@@ -59,17 +82,18 @@ public:
 
   encEvnts getEvent(void);
 
-  inline void setSensivity(int8_t s)
-  {
-    sensivity = s;
-  }
-
   void flush();
 
-  inline void service()
+  void service()
   {
+    if (!lock())
+    {
+      Serial.println("encoder IF semtake fail");
+      return;
+    }
+
     pEncoder->service();
-    update();
+    unlock();
   }
 };
 

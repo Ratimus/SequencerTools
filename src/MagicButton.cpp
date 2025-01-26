@@ -61,7 +61,7 @@ void MagicButton::service()
     {
       if (!buttonDown)
       {
-        if (!doubleClickEnabled)
+        if (!doubleClickable)
         {
           state[1] = ButtonState::Clicked;
           state[0] = ButtonState::Released;

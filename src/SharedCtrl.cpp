@@ -163,7 +163,7 @@ int16_t LockingCtrl::getMax()
 
 
 ////////////////////////////////////////////////
-// Get the lock value regardles of lock state
+// Get the lockControl value regardles of lockControl state
 int16_t LockingCtrl::getLockVal()
 {
   return lockVal_;
@@ -249,7 +249,7 @@ void LockingCtrl::overWrite()
 
 
 ////////////////////////////////////////////////
-// Ignore current reading, overwrite the lock value with jamVal
+// Ignore current reading, overwrite the lockControl value with jamVal
 void LockingCtrl::setLockVal(int16_t jamVal)
 {
   lockVal_ = jamVal;
@@ -258,7 +258,7 @@ void LockingCtrl::setLockVal(int16_t jamVal)
 
 ////////////////////////////////////////////////
 // Lock the control at its current value if it isn't already locked
-void LockingCtrl::lock()
+void LockingCtrl::lockControl()
 {
   setLockVal(read());
   setLockState_(LockState::STATE_LOCKED);
@@ -459,9 +459,9 @@ void MultiModeCtrl::selectActiveBank(uint8_t bank)
 
 ////////////////////////////////////////////////
 // Lock the active VirtualCtrl
-void MultiModeCtrl::lock()
+void MultiModeCtrl::lockControl()
 {
-  pActiveCtrl->lock();
+  pActiveCtrl->lockControl();
 }
 
 
@@ -501,7 +501,7 @@ void MultiModeCtrl::setRange(uint8_t sel, int16_t max, int16_t min)
 void MultiModeCtrl::setRange(std::shared_ptr<VirtualCtrl> pDest, int16_t max, int16_t min)
 {
   LockState tmpState(pDest->getLockState());
-  pDest->lock();
+  pDest->lockControl();
   pDest->setMaxAndMin(max, min);
   if (tmpState != LockState::STATE_LOCKED)
   {
@@ -533,7 +533,7 @@ void MultiModeCtrl::copySettings(std::shared_ptr<VirtualCtrl> pDest,
   }
 
   LockState tmpState(pDest->getLockState());
-  pDest->lock();
+  pDest->lockControl();
   pDest->setLockVal(pSource->read());
   setRange(pDest, pSource->getMax(), pSource->getMin());
   if (tmpState != LockState::STATE_LOCKED)
@@ -711,7 +711,7 @@ void ControllerBank::lessRange()
 
     if (val != fader->read())
     {
-      fader->lock();
+      fader->lockControl();
       fader->setLockVal(val);
     }
 

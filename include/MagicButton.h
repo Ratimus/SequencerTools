@@ -11,6 +11,8 @@
 #include <CD4067.h>
 #include <memory>
 #include <DirectIO.h>
+#include <freertos/semphr.h>
+
 
 // #define DEBUG_BUTTON_STATES
 
@@ -57,7 +59,7 @@ private:
   int8_t   pin;         // HW pin
   bool     pullup;      // Set TRUE to enable pullup resistor if active low
   uint8_t  dbnceIntvl;  // How long to lockout bounce AFTER press/release
-  bool     doubleClickEnabled;
+  bool     doubleClickable;
 
   volatile ButtonState state[2];
   volatile bool buttonDown;  // Raw data. We don't need to see it, we don't want to see it.
@@ -83,18 +85,17 @@ public:
   // Constructor
   MagicButton(int8_t pin,
               bool pullup,
-              bool doubleClickable):  // Active LOW if pullup == TRUE
-      pin(pin),
-      pullup(pullup)
+              bool doubleClickable):
+    buff(0),
+    pin(pin),
+    debounceTS(0),
+    buttonDown(0),
+    dbnceIntvl(25),
+    pullup(pullup),
+    outputCleared(1),
+    doubleClickable(doubleClickable),
+    state{ButtonState::Open, ButtonState::Open}
   {
-    buff       = 0;
-    debounceTS = 0;
-    buttonDown = 0;
-    dbnceIntvl = 25; // ms
-    state[0]   = ButtonState::Open;
-    state[1]   = state[0];
-    doubleClickEnabled = doubleClickable;
-    outputCleared = true;
     if (pin != -1)
     {
       pinMode(pin, pullup ? INPUT_PULLUP : INPUT);
@@ -114,19 +115,9 @@ class MuxedButton : public MagicButton
 
 public:
 
-  static void update()
-  {
-    if (_SHARED_MUX == NULL)
-    {
-      return;
-    }
-
-    _REGISTER = _SHARED_MUX->getReg();
-  }
-
   MuxedButton(uint16_t bit):
-      MagicButton(-1, true, true),
-      _BITMASK((uint16_t)1 << bit)
+    MagicButton(-1, true, true),
+    _BITMASK((uint16_t)1 << bit)
   { ; }
 
   static void setMux(HW_Mux *pMux)
@@ -134,8 +125,15 @@ public:
     _SHARED_MUX = std::shared_ptr<HW_Mux>(pMux);
   }
 
+  // You don't need to call this if you have other stuff on this mux and you already updated it
+  static void updateReg()
+  {
+    _SHARED_MUX->service();
+  }
+
   virtual bool getRawVal(void) override
   {
+    _REGISTER = _SHARED_MUX->getReg();
     return _REGISTER & _BITMASK;
   }
 };

@@ -42,7 +42,7 @@ protected:
     NUM_GATES(numGates)
   {
     assert(numGates < 33);
-    mutex = xSemaphoreCreateMutex();
+    mutex = xSemaphoreCreateRecursiveMutex();
     reset();
   }
 
@@ -51,12 +51,12 @@ public:
   // Return everything to defaults
   void reset()
   {
-    assert(xSemaphoreTake(mutex, PATIENCE));
+    assert(xSemaphoreTakeRecursive(mutex, PATIENCE));
     _gates      = 0;
     _gatesDiff  = 0;
     _rising     = 0;
     _falling    = 0;
-    xSemaphoreGive(mutex);
+    xSemaphoreGiveRecursive(mutex);
   }
 
   // Call this in an ISR or in a loop.

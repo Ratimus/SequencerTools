@@ -2,42 +2,10 @@
 #include <DirectIO.h>
 
 
-void IRAM_ATTR muxTask(void *param)
-{
-  HW_Mux *mux = static_cast<HW_Mux *>(param);
-  while (1)
-  {
-    if (pdTRUE != xSemaphoreTake(mux->timingSemaphore, portMAX_DELAY))
-    {
-      continue;
-    }
-
-    if (pdTRUE != xSemaphoreTake(mux->resourceMutex, 0))
-    {
-      continue;
-    }
-
-    mux->tmp = mux->MUXREG;
-    mux->MUXREG = 0;
-
-    for (auto n: GRAY_CODE)
-    {
-      mux->muxEnable(n);
-      if (!directRead(mux->IO))
-      {
-        bitWrite(mux->MUXREG, n, 1);
-      }
-    }
-
-    xSemaphoreGive(mux->resourceMutex);
-  }
-}
-
-
 HW_Mux::HW_Mux(const uint8_t* const addrPins, uint8_t ioPin):
     IO(ioPin),
     MUXREG(0),
-    tmp(0)
+    resourceMutex(xSemaphoreCreateRecursiveMutex())
 {
   for (auto n(0); n < 4; ++n)   // C'mon C++... if Python's got enumerate(), why can't we???
   {
@@ -45,25 +13,10 @@ HW_Mux::HW_Mux(const uint8_t* const addrPins, uint8_t ioPin):
     pinMode(ADDR[n], OUTPUT);
   }
   pinMode(IO, INPUT_PULLUP);
-
-  muxTaskHandle   = TaskHandle_t(NULL);
-  resourceMutex   = xSemaphoreCreateMutex();
-  timingSemaphore = xSemaphoreCreateBinary();
-
-  xTaskCreatePinnedToCore
-  (
-    muxTask,
-    "MUX Task",
-    4096,
-    this,
-    10,
-    &muxTaskHandle,
-    0
-  );
 }
 
 
-void HW_Mux::muxEnable(uint8_t channel)
+void HW_Mux::muxEnable(uint8_t channel, uint8_t delayMicros)
 {
   static uint8_t CURRENT_CHANNEL = 0b00001111;
   uint8_t diff = CURRENT_CHANNEL ^ channel;
@@ -86,17 +39,21 @@ void HW_Mux::muxEnable(uint8_t channel)
   }
 
   CURRENT_CHANNEL = channel;
-  delayMicroseconds(5);
+  delayMicroseconds(delayMicros);
 }
 
 
 uint16_t HW_Mux::getReg(void)
 {
-  uint16_t ret = tmp;
-  if (pdTRUE == xSemaphoreTake(resourceMutex, 0))
+  uint16_t ret = 0;
+  if (pdTRUE == xSemaphoreTakeRecursive(resourceMutex, 10))
   {
     ret = MUXREG;
-    xSemaphoreGive(resourceMutex);
+    xSemaphoreGiveRecursive(resourceMutex);
+  }
+  else
+  {
+    Serial.println("muxgetreg fail");
   }
   return ret;
 }

@@ -12,7 +12,7 @@
 class MultiModeCtrl
 {
 private:
-  SemaphoreHandle_t sem;
+  SemaphoreHandle_t mutex;
   volatile uint8_t activeIndex;
   uint8_t numModes;
 
@@ -30,21 +30,21 @@ private:
 
   friend class ControllerBank;
 
-  bool semTake()
+  bool lock()
   {
-    return (pdTRUE == xSemaphoreTake(sem, 1));
+    return (pdTRUE == xSemaphoreTake(mutex, 1));
   }
 
-  void semGive()
+  void unlock()
   {
-    xSemaphoreGive(sem);
+    xSemaphoreGive(mutex);
   }
 
-  void lock()
+  void lockControl()
   {
     if (getPtr())
     {
-      getPtr()->lock();
+      getPtr()->lockControl();
     }
   }
 public:
@@ -55,15 +55,15 @@ public:
                 uint16_t defaultVal = 0):
       numModes(numModes)
   {
-    sem = xSemaphoreCreateMutex();
-    semTake();
+    mutex = xSemaphoreCreateRecursiveMutex();
+    lock();
     for (uint8_t mode = 0; mode < numModes; ++mode)
     {
       pVirtualCtrls.push_back(std::make_shared<ControlObject>(inAdc, topOfRange + 1, defaultVal));
     }
 
     activeIndex = 0;
-    semGive();
+    unlock();
   }
 
   MultiModeCtrl(std::shared_ptr<ADC_Object>inAdc,
@@ -72,15 +72,15 @@ public:
                 uint16_t defaultVal = 0):
       numModes(numModes)
   {
-    sem = xSemaphoreCreateMutex();
-    semTake();
+    mutex = xSemaphoreCreateRecursiveMutex();
+    lock();
     for (uint8_t mode = 0; mode < numModes; ++mode)
     {
       pVirtualCtrls.push_back(std::make_shared<ControlObject>(inAdc, topOfRange + 1, defaultVal));
     }
 
     activeIndex = 0;
-    semGive();
+    unlock();
     // pActiveCtrl = pVirtualCtrls.at(0);
   }
 
@@ -145,7 +145,7 @@ public:
 
   void selectMode(uint8_t mode, bool reqUnlock = true)
   {
-    if (!semTake())
+    if (!lock())
     {
       Serial.println("MMC selmode semtake failed");
       while (1);
@@ -153,7 +153,7 @@ public:
 
     if (getPtr())
     {
-      getPtr()->lock();
+      getPtr()->lockControl();
     }
 
     activeIndex = mode;
@@ -162,12 +162,12 @@ public:
       getPtr()->reqUnlock();
     }
 
-    semGive();
+    unlock();
   }
 
   void setLockVal(uint16_t jamVal, int8_t mode = -1)
   {
-  if (!semTake())
+  if (!lock())
   {
     Serial.println("MMC setval semtake failed");
     while (1);
@@ -177,7 +177,7 @@ public:
       getPtr(mode)->setLockVal(jamVal);
     }
 
-    semGive();
+    unlock();
   }
 
   void setDefaults();
