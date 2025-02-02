@@ -5,17 +5,16 @@
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
 #include "ClickEncoderInterface.h"
+#include <memory>
 
 // Constructor
 ClickEncoderInterface::ClickEncoderInterface(ClickEncoder *Enc, int8_t sense):
   pEncoder(Enc),
-  sensivity(sense),
   pos(0),
-  oldPos(0)
-{
-  assert(sensivity != 0);
-  update();
-}
+  oldPos(0),
+  heldClicked(0),
+  mutex(xSemaphoreCreateRecursiveMutex())
+{ ; }
 
 
 ClickEncoderInterface::ClickEncoderInterface(
@@ -26,57 +25,61 @@ ClickEncoderInterface::ClickEncoderInterface(
     uint8_t stepsPerNotch,
     bool usePullResistors):
   pEncoder(std::make_shared<ClickEncoder>(A, B, BTN, stepsPerNotch, usePullResistors)),
-  sensivity(sense),
   pos(0),
-  oldPos(0)
-{
-  assert(sensivity != 0);
-  update();
-}
+  oldPos(0),
+  heldClicked(0),
+  mutex(xSemaphoreCreateRecursiveMutex())
+{ ; }
 
 
 encEvnts ClickEncoderInterface::getEvent(void)
 {
-  static bool heldClicked(0);
-  // encEvnts ret = encEvnts::NUM_ENC_EVNTS
-  ButtonState prevState = btnState;
-
-  update();
-
-  if (pos != oldPos)
+  if (!lock())
   {
-    int deltaPos = pos - oldPos;
-
-    if (deltaPos <= -sensivity)          // Right Click
-    {
-      oldPos -= sensivity;
-      if (btnState == ButtonState::Held) // Hold+Turn
-      {
-        heldClicked = 1;
-        return encEvnts::ShiftRight;
-      }
-      return encEvnts::Right;
-    }
-
-    if (deltaPos >= sensivity)           // Left Click
-    {
-      oldPos += sensivity;
-      if (btnState == ButtonState::Held) // Hold+Turn
-      {
-        heldClicked = 1;
-        return encEvnts::ShiftLeft;
-      }
-
-      return encEvnts::Left;
-    }
+    Serial.println("shit no encoder semtake");
+    return encEvnts::None;
   }
 
-  if (prevState == btnState)
+  ButtonState prevState    = btnState;
+  oldPos                   = pos;
+  pos                      = pEncoder->readPosition();
+  btnState                 = pEncoder->readButton();
+  ButtonState currentState = btnState;
+  int deltaPos             = pos - oldPos;
+  unlock();
+
+  // Right Click
+  if (deltaPos <= -1)
+  {
+    if (currentState == ButtonState::Held)
+    {
+      // Hold+Turn
+      heldClicked = 1;
+      return encEvnts::ShiftRight;
+    }
+
+    return encEvnts::Right;
+  }
+
+  // Left Click
+  if (deltaPos >= 1)
+  {
+    if (currentState == ButtonState::Held)
+    {
+      // Hold+Turn
+      heldClicked = 1;
+      return encEvnts::ShiftLeft;
+    }
+
+    return encEvnts::Left;
+  }
+
+  if (prevState == currentState)
   {
     return encEvnts::None;
   }
 
-  if (btnState != ButtonState::Open)
+  if (currentState != ButtonState::Open)
   {
     return encEvnts::None;
   }
@@ -113,10 +116,12 @@ encEvnts ClickEncoderInterface::getEvent(void)
 
 void ClickEncoderInterface::flush()
 {
+  assert(xSemaphoreTakeRecursive(mutex, 10) == pdTRUE);
   btnState = ButtonState::Open;
-  pEncoder->getClickCount();
-  pEncoder->readButtonState();
+  pEncoder->readPosition();
+  pEncoder->readButton();
   oldPos = pos;
+  xSemaphoreGiveRecursive(mutex);
 }
 // ButtonStates you may see in the wild:
 //  Open

@@ -17,14 +17,14 @@
 // Maximum number of samples to average (higher values smooth noise)
 static const uint8_t MAX_BUFFER_SIZE(128);
 
-// Unlock knob when within this percent difference from the lock value
+// Unlock knob when within this percent difference from the lockControl value
 static const double  DEFAULT_THRESHOLD(0.05);
 
 ////////////////////////////////////////////////
 // UNLOCKED:         control value is whatever the current reading is
-// UNLOCK_REQUESTED: control will unlock if/when current reading matches lock value,
-//                   else it returns lock value
-// LOCKED:           ignore vurrent reading and return lock value
+// UNLOCK_REQUESTED: control will unlock if/when current reading matches lockControl value,
+//                   else it returns lockControl value
+// LOCKED:           ignore vurrent reading and return lockControl value
 enum LockState
 {
   STATE_UNLOCKED = 0,
@@ -112,7 +112,7 @@ public:
   void              overWrite();
   bool              isReady();
 
-  virtual void      lock();
+  virtual void      lockControl();
   virtual int16_t   read();
   virtual LockState reqUnlock();
   virtual void      setLockVal(int16_t jamVal);
@@ -179,7 +179,7 @@ public:
 
   void      selectActiveBank(uint8_t bank);
   void      reqUnlock();
-  void      lock();
+  void      lockControl();
 
   void      setLockVal(int16_t jamVal);
 

@@ -8,9 +8,9 @@
 
 ////////////////////////////////////////////////
 // UNLOCKED:         control value is whatever the current reading is
-// UNLOCK_REQUESTED: control will unlock if/when current reading matches lock value,
-//                   else it returns lock value
-// LOCKED:           ignore vurrent reading and return lock value
+// UNLOCK_REQUESTED: control will unlock if/when current reading matches lockControl value,
+//                   else it returns lockControl value
+// LOCKED:           ignore vurrent reading and return lockControl value
 enum LockState
 {
   STATE_UNLOCKED = 0,
@@ -18,15 +18,15 @@ enum LockState
   STATE_LOCKED
 };
 
-// Unlock control when within this percent difference from the lock value
+// Unlock control when within this percent difference from the lockControl value
 static const double  DEFAULT_THRESHOLD(0.01);
 
 class ControlObject
 {
 private:
-  SemaphoreHandle_t sem;
-  bool semTake();
-  void semGive();
+  SemaphoreHandle_t mutex;
+  bool lock();
+  void unlock();
 
 protected:
   volatile LockState lockState;
@@ -47,7 +47,7 @@ public:
       lockCtrlVal(defaultControlVal)
   {
     pADC = std::make_shared<SmoothedADC>(std::shared_ptr<ADC_Object>(inADC), 100);
-    sem = xSemaphoreCreateRecursiveMutex();
+    mutex = xSemaphoreCreateRecursiveMutex();
   }
 
   ControlObject(std::shared_ptr<ADC_Object>inADC,
@@ -58,7 +58,7 @@ public:
       lockCtrlVal(defaultControlVal)
   {
     pADC = std::make_shared<SmoothedADC>(inADC, 100);
-    sem = xSemaphoreCreateRecursiveMutex();
+    mutex = xSemaphoreCreateRecursiveMutex();
   }
 
   uint16_t  getMin(void);
@@ -66,7 +66,7 @@ public:
   LockState getLockState(void);
   void      setMin(uint16_t min);
   void      setMax(uint16_t max);
-  void      lock();
+  void      lockControl();
   LockState reqUnlock();
   void      setLockVal(int16_t jamVal);
 

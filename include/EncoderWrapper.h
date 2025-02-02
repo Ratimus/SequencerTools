@@ -10,88 +10,117 @@
 #ifndef EncoderWrapper_H
 #define EncoderWrapper_H
 
-#ifdef __rotaryEventIn_h__
 
 #include <Arduino.h>
 #include "ClickEncoderInterface.h"
 #include <menuDefs.h>
-#include <RotaryEvent.h>
+#include <freertos/semphr.h>
 
 namespace Menu
 {
 class EncoderWrapper : public menuIn
 {
-private:
-
-  ClickEncoderInterface &encoderInterface;
-  RotaryEvent &eventSource;
-  encEvnts _evt;
+  SemaphoreHandle_t mutex;
+  std::list<uint8_t> events;
 
 public:
 
-  EncoderWrapper(
-    ClickEncoderInterface &EncoderInterface,
-    RotaryEvent &Rotary) :
-      encoderInterface(EncoderInterface),
-      eventSource(Rotary)
+  size_t write(uint8_t v) override {return 0;}
+  ClickEncoderInterface &encoderInterface;
+
+  EncoderWrapper(ClickEncoderInterface &EncoderInterface):
+    encoderInterface(EncoderInterface),
+    mutex(xSemaphoreCreateRecursiveMutex())
+  { ; }
+
+  int peek(void) override
   {
-    _evt = encoderInterface.getEvent();
+    int ret = encEvnts::None;
+    if (xSemaphoreTakeRecursive(mutex, 10) != pdTRUE)
+    {
+      return ret;
+    }
+
+    if (!events.empty())
+    {
+      ret = events.back();
+    }
+    xSemaphoreGiveRecursive(mutex);
+    return ret;
   }
 
-  int peek(void) override { return eventSource.peek(); }
-  int available(void) override { return peek() != 0; }
-  int read() override { return eventSource.read(); }
+  int available(void) override
+  {
+    return peek() != encEvnts::None;
+  }
+
+  int read() override
+  {
+    if (!available())
+    {
+      return Menu::options->navCodes[noCmd].ch;
+    }
+
+
+    if (xSemaphoreTakeRecursive(mutex, 10)!= pdTRUE)
+    {
+      return encEvnts::None;
+    }
+
+    int ret = peek();
+    events.pop_back();
+    xSemaphoreGiveRecursive(mutex);
+    return ret;
+  }
 
   void flush() override
   {
-    encoderInterface.flush();
-    eventSource.flush();
-  }
+    while (available())
+    {
+      xSemaphoreTakeRecursive(mutex, 10);
+      events.pop_back();
+      xSemaphoreGiveRecursive(mutex);
+    }
 
-  size_t write(uint8_t v) override
-  {
-    eventSource.registerEvent(static_cast<RotaryEvent::EventType>(v));
-    return 1;
+    encoderInterface.flush();
   }
 
   void service()
   {
+    xSemaphoreTakeRecursive(mutex, 10);
     encoderInterface.service();
-    _evt = encoderInterface.getEvent();
-    switch(_evt)
+    switch(encoderInterface.getEvent())
     {
       case encEvnts::Click:
       {
-        eventSource.registerEvent(RotaryEvent::EventType::BUTTON_CLICKED);
-        break;
-      }
-      case encEvnts::DblClick:
-      {
-        eventSource.registerEvent(RotaryEvent::EventType::BUTTON_DOUBLE_CLICKED);
+        events.push_front(Menu::options->navCodes[enterCmd].ch);
         break;
       }
       case encEvnts::Hold:
+      case encEvnts::DblClick:
       {
-        eventSource.registerEvent(RotaryEvent::EventType::BUTTON_LONG_PRESSED);
-        break;
-      }
-      case encEvnts::Left:
-      {
-        eventSource.registerEvent(RotaryEvent::EventType::ROTARY_CCW);
+        events.push_front(Menu::options->navCodes[escCmd].ch);
         break;
       }
       case encEvnts::Right:
+      case encEvnts::ShiftRight:
       {
-        eventSource.registerEvent(RotaryEvent::EventType::ROTARY_CW);
+        events.push_front(Menu::options->navCodes[upCmd].ch);
+        break;
+      }
+      case encEvnts::Left:
+      case encEvnts::ShiftLeft:
+      {
+        events.push_front(Menu::options->navCodes[downCmd].ch);
         break;
       }
       default:
-      break;
+        break;
     }
+    xSemaphoreGiveRecursive(mutex);
   }
 };
-}//namespace Menu
 
-#endif /* #ifdef __rotaryEventIn_h__ */
+}//namespace Menu
 
 #endif /* EncoderWrapper_h */

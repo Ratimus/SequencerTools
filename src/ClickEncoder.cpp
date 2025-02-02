@@ -6,13 +6,6 @@
 // Ryan "Ratimus" Richardson
 // Nov. 2022
 // ----------------------------------------------------------------------------
-// Based on work by:
-// (c) 2010 karl@pitrich.com
-// (c) 2014 karl@pitrich.com
-//
-// Timer-based rotary encoder logic by Peter Dannegger
-// http://www.mikrocontroller.net/articles/Drehgeber
-// ----------------------------------------------------------------------------
 
 #include "ClickEncoder.h"
 #include <DirectIO.h>
@@ -26,201 +19,220 @@ const uint8_t  ENC_ACCEL_DEC (2);
 
 // ----------------------------------------------------------------------------
 
-#if ENC_DECODER != ENC_NORMAL
-#    if ENC_HALFSTEP
-        // Decoding table for hardware with flaky notch (half resolution)
-        const int8_t ClickEncoder::table[16]  // __attribute__((__progmem__))
-        {
-          0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, -1, 0, 0
-        };
-#   else
-        // Decoding table for normal hardware
-        const int8_t ClickEncoder::table[16]  //  __attribute__((__progmem__))
-        {
-          0, 1, -1, 0, -1, 0, 0, 1, 1, 0, 0, -1, 0, -1, 1, 0
-        };
-#   endif   /* ENC_HALFSTEP */
-#endif      /* ENC_DECODER != ENC_NORMAL */
-
-// ----------------------------------------------------------------------------
-
 ClickEncoder::ClickEncoder(int8_t A,
                            int8_t B,
                            int8_t BTN,
                            uint8_t stepsPerNotch,
                            bool usePulllResistor) :
-   doubleClickEnabled(true),
+   doubleClickable(true),
    accelerationEnabled(false),
+   position(0),
    delta(0),
-   last(0),
    acceleration(0),
    steps(stepsPerNotch),
    pinA(A),
    pinB(B),
-   activeLow(usePulllResistor)
+   lastEncoded(0),
+   activeLow(usePulllResistor),
+   encoderMutex(xSemaphoreCreateRecursiveMutex())
 {
   if (pinA != -1)
   {
-    hwButton = std::make_shared<MagicButton>(BTN, activeLow, doubleClickEnabled);
+    hwButton = std::make_shared<MagicButton>(BTN, activeLow, doubleClickable);
     uint8_t configType = activeLow ? INPUT_PULLUP : INPUT;
     pinMode(pinA,   configType);
     pinMode(pinB,   configType);
 
-    if ((bool)directRead(pinA) != activeLow)
-    {
-      last = (BIT0 | BIT1);
-    }
-
-    if ((bool)directRead(pinB) != activeLow)
-    {
-      last ^= BIT0;
-    }
+    MSB = readA();
+    LSB = readB();
+  }
+  else
+  {
+    hwButton = nullptr;
   }
 }
+
 
 // ----------------------------------------------------------------------------
 // call this every 1 millisecond via timer ISR
 //
 void ClickEncoder::service(void)
 {
-  if (accelerationEnabled)      // decelerate every tick
-  {
-    acceleration -= ENC_ACCEL_DEC;
+  lock();
+  long encoded = 0;
+  long tmpMSB  = (long)readA();
+  long tmpLSB  = (long)readB();
 
-    if (acceleration & 0x8000)  // handle overflow of MSB is set
+  // TODO: we're mimicking the hardware interrupts here, so we need to handle the first three
+  // lines for one bit then run the equivalent of the ISR once *BEFORE* we do the same thing
+  // for the other pin. If you want, put the redundant stuff in its own function so you can
+  // call it without disturbing the other logic, since the sequence here is very important
+  if (MSB != tmpMSB)
+  {
+    MSB      = tmpMSB;
+    encoded  = (MSB << 1) | LSB;
+    long sum = (lastEncoded << 2) | encoded;  // Add it to the previous encoded value
+    switch(sum)
     {
-      acceleration = 0;
+      case 0b1101:
+      case 0b0100:
+      case 0b0010:
+      case 0b1011:
+        ++delta;
+        break;
+
+      case 0b1110:
+      case 0b0111:
+      case 0b0001:
+      case 0b1000:
+        --delta;
+        break;
+
+      default:
+        break;
     }
-  }
 
-  bool moved = false;
-
-  // cli();
-#if ENC_DECODER == ENC_FLAKY
-  last = (last << 2) & 0x0F;
-
-  if (!readA())
-  {
-    last |= BIT1;
-  }
-
-  if (!readB())
-  {
-    last |= BIT0;
-  }
-
-  if (table[last])
-  {
-    delta += table[last];
-    moved = true;
-  }
-#elif ENC_DECODER == ENC_NORMAL
-  int8_t curr = readA() ? (BIT0 | BIT1) : 0;
-  if (readB())
-  {
-    curr ^= BIT0;
-  }
-
-  int8_t diff = last - curr;
-
-  if (diff & BIT0)             // bit 0 = step
-  {
-    last   = curr;
-    delta += (diff & BIT1) - 1; // bit 1 = direction (+/-)
-    moved  = true;
-  }
-#else
-# error "Error: define ENC_DECODER to ENC_NORMAL or ENC_FLAKY"
-#endif // ENC_DECODER == ENC_FLAKY
-  // sei();
-
-  if (accelerationEnabled && moved)
-  {
-    // increment accelerator if encoder has been moved
-    if (acceleration <= (ENC_ACCEL_TOP - ENC_ACCEL_INC))
+    int16_t oldPos = position;
+    while (delta >= (int16_t)steps)
     {
-      acceleration += ENC_ACCEL_INC;
+      delta -= (int16_t)steps;
+      ++position;
     }
+
+    while (delta <= -(int16_t)steps)
+    {
+      delta += (int16_t)steps;
+      --position;
+    }
+
+    lastEncoded = encoded;
   }
+
+  if (LSB != tmpLSB)
+  {
+    LSB      = tmpLSB;
+    encoded  = (MSB << 1) | LSB;
+    long sum = (lastEncoded << 2) | encoded;  // Add it to the previous encoded value
+    switch(sum)
+    {
+      case 0b1101:
+      case 0b0100:
+      case 0b0010:
+      case 0b1011:
+        ++delta;
+        break;
+
+      case 0b1110:
+      case 0b0111:
+      case 0b0001:
+      case 0b1000:
+        --delta;
+        break;
+
+      default:
+        break;
+    }
+
+    int16_t oldPos = position;
+    while (delta >= (int16_t)steps)
+    {
+      delta -= (int16_t)steps;
+      ++position;
+    }
+
+    while (delta <= -(int16_t)steps)
+    {
+      delta += (int16_t)steps;
+      --position;
+    }
+
+    lastEncoded = encoded;
+  }
+
+  unlock();
   hwButton->service();
 }
 
 
-  // Update button state. If our button variable is free,
-  // copy the button's state into it and free the hw button
-  // for further updates. Don't free *our* encBtnState variable
-  // until someone else reads *us*
-void ClickEncoder::updateButton()
+bool ClickEncoder::readA()
 {
-  hwButton->service();
-  if (btnStateCleared)
-  {
-    ButtonState tmp = hwButton->read();
-    encBtnState     = tmp;
-    btnStateCleared = false;
-  }
+  return (directRead(pinA) ^ activeLow);
 }
+
+
+bool ClickEncoder::readB()
+{
+  return (directRead(pinB) ^ activeLow);
+}
+
+
+bool ClickEncoder::lock(void)
+{
+  return (xSemaphoreTakeRecursive(encoderMutex, MUTEX_TIMEOUT) == pdTRUE);
+}
+
+
+void ClickEncoder::unlock(void)
+{
+  xSemaphoreGiveRecursive(encoderMutex);
+}
+
+
+void ClickEncoder::onPinChange()
+{
+  lock();
+  MSB = readB();
+  LSB = readA();
+
+  int encoded = (MSB << 1) | LSB;           // Convert pin B to single number
+  int sum  = (lastEncoded << 2) | encoded;  // Add it to the previous encoded value
+
+  if(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011)
+  {
+    ++delta;
+  }
+
+  if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000)
+  {
+    --delta;
+  }
+
+  while (delta >= steps)
+  {
+    delta -= steps;
+    ++position;
+  }
+
+  while (delta <= -steps)
+  {
+    delta += steps;
+    --position;
+  }
+
+  lastEncoded = encoded;
+  unlock();
+}
+
 // ----------------------------------------------------------------------------
 
-int16_t ClickEncoder::getClickCount(void)
+int16_t ClickEncoder::readPosition(void)
 {
-  updateButton();
-  // cli();
-  int16_t val = delta;
+  lock();
+  int16_t ret = position;
+  unlock();
 
-  if (steps == 2)
-  {
-    delta = val & BIT0;
-  }
-  else if (steps == 4)
-  {
-    delta = val & (BIT0 | BIT1);
-  }
-  else
-  {
-    delta = 0; // default to 1 step per notch
-  }
-  // sei();
-
-  if (steps == 4)
-  {
-    val >>= 2;
-  }
-  else if (steps == 2)
-  {
-    val >>= 1;
-  }
-
-  int16_t r = 0;
-  int16_t accel = ((accelerationEnabled) ? (acceleration >> 8) : 0);
-
-  if (val < 0)
-  {
-    r -= 1 + accel;
-  }
-  else if (val > 0)
-  {
-    r += 1 + accel;
-  }
-
-  return r;
+  return ret;
 }
+
 
 // ----------------------------------------------------------------------------
 // Resets buttonState and returns value prior to reset; encBtnState output state
 // persists until this function is called && encBtnState has been released
-ButtonState ClickEncoder::readButtonState(void)
+ButtonState ClickEncoder::readButton(void)
 {
-  ButtonState ret = this->encBtnState;
-  btnStateCleared = true;
+  lock();
+  ButtonState ret = hwButton->read();
+  unlock();
   return ret;
 }
 
-void ClickEncoder::setAccelerationEnabled(const bool &a)
-{
-  accelerationEnabled = a;
-  if (accelerationEnabled == false)
-  {
-    acceleration = 0;
-  }
-}

@@ -19,15 +19,31 @@ const uint8_t MAX_BUFFER_SIZE(128);
 //  min:         lowest measurable value the HW will report
 //  max:         highest measurable value the HW will report
 //
-//  getRawValue: returns measured value from ADC channel
 //  read:        returns a value between 0 and 4095
 class ADC_Object
 {
 protected:
-  SemaphoreHandle_t sem;
+  SemaphoreHandle_t mutex;
 
   uint16_t adcMin;
   uint16_t adcMax;
+
+  static inline const TickType_t PATIENCE = 10;
+
+  bool lock()
+  {
+    if (xSemaphoreTakeRecursive(mutex, PATIENCE) != pdTRUE)
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  void unlock()
+  {
+    xSemaphoreGiveRecursive(mutex);
+  }
 
 public:
 
@@ -39,10 +55,9 @@ public:
 
   ADC_Object(uint16_t min, uint16_t max):
       adcMin(min),
-      adcMax(max)
-  {
-    sem = xSemaphoreCreateMutex();
-  }
+      adcMax(max),
+      mutex(xSemaphoreCreateRecursiveMutex())
+  { ; }
 
   virtual void service(void) = 0;
   virtual uint16_t read(void) = 0;
@@ -72,7 +87,7 @@ public:
 
   virtual void service(void) override
   {
-    if (pdTRUE != xSemaphoreTake(sem, 10))
+    if (pdTRUE != lock())
     {
       Serial.println("MCH svc semtake failed");
       while (1);
@@ -86,7 +101,7 @@ public:
     {
       rawVal = pADC->analogRead(channel);
     }
-    xSemaphoreGive(sem);
+    unlock();
   }
 
   MCP_Channel():
@@ -114,14 +129,14 @@ public:
 
   virtual uint16_t read(void) override
   {
-    if (pdTRUE != xSemaphoreTake(sem, 10))
+    if (pdTRUE != lock())
     {
       Serial.println("MCH read semtake failed");
       while (1);
     }
 
     uint16_t ret = rawVal;
-    xSemaphoreGive(sem);
+    unlock();
     return ret;
   }
 };
@@ -157,7 +172,7 @@ public:
 
   virtual void service() override
   {
-    if (pdTRUE != xSemaphoreTake(sem, 10))
+    if (pdTRUE != lock())
     {
       Serial.println("e32 svc semtake failed");
       while (1);
@@ -171,19 +186,19 @@ public:
     {
       rawVal = ADC.readRaw();
     }
-    xSemaphoreGive(sem);
+    unlock();
   }
 
   virtual uint16_t read() override
   {
-    if (pdTRUE != xSemaphoreTake(sem, 10))
+    if (pdTRUE != lock())
     {
       Serial.println("e32 read semtake failed");
       while (1);
     }
 
     uint16_t ret = rawVal;
-    xSemaphoreGive(sem);
+    unlock();
     return ret;
   }
 
@@ -254,7 +269,7 @@ public:
 
   void reset()
   {
-    if (pdTRUE != xSemaphoreTake(sem, 10))
+    if (pdTRUE != lock())
     {
       Serial.println("smth reset semtake failed");
       while (1);
@@ -264,15 +279,15 @@ public:
     runningSum  = 0;
     sampleCount = 0;
     writeIndex = 0;
-    xSemaphoreGive(sem);
+    unlock();
   }
 
   virtual void service(void) override
   {
-    pADC->service();
+        pADC->service();
     uint16_t newestReading = pADC->read();
 
-    if (pdTRUE != xSemaphoreTake(sem, 10))
+    if (pdTRUE != lock())
     {
       Serial.println("smth svc semtake failed");
       while (1);
@@ -294,7 +309,7 @@ public:
       readings[sampleCount] = newestReading;
       ++sampleCount;
     }
-    xSemaphoreGive(sem);
+    unlock();
   }
 
   virtual uint16_t read(void) override
@@ -304,14 +319,14 @@ public:
       return pADC->getMin();
     }
 
-    if (pdTRUE != xSemaphoreTake(sem, 10))
+    if (pdTRUE != lock())
     {
       Serial.println("smth read semtake failed");
       while (1);
     }
 
     uint16_t ret = (uint16_t)(runningSum / (uint64_t)sampleCount);
-    xSemaphoreGive(sem);
+    unlock();
     return ret;
   }
 

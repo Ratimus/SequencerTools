@@ -12,30 +12,38 @@ class ControllerBank
   uint8_t modeCount;
 
   std::vector<MultiModeCtrl> controls;
-  std::vector<uint8_t> positionMapping;
+  std::vector<bool>          locks;
+  std::vector<uint16_t>      vals;
+  std::vector<uint8_t>       positionMapping;
 
-  SemaphoreHandle_t sem;
+  SemaphoreHandle_t mutex;
+  static inline const TickType_t PATIENCE = 10;
 
-public:
-  ControllerBank(uint8_t controlCount,
-                 uint8_t modeCount):
-      currentMode(0),
-      controlCount(controlCount),
-      modeCount(modeCount)
+  bool lock()
   {
-    controls.reserve(controlCount);
-    sem = xSemaphoreCreateMutex();
+    if (xSemaphoreTakeRecursive(mutex, PATIENCE) != pdTRUE)
+    {
+      return false;
+    }
+
+    return true;
   }
 
-  void init(const uint8_t *pins,
-            uint16_t topOfRange)
+  void unlock()
   {
-    for (uint8_t n(0); n < controlCount; ++n)
-    {
-      pinMode(pins[n], INPUT);
-      auto pESP_ADC = std::make_shared<ESP32_ADC_Channel>(pins[n]);
-      controls.push_back(MultiModeCtrl(pESP_ADC, modeCount, topOfRange));
-    }
+    xSemaphoreGiveRecursive(mutex);
+  }
+
+public:
+
+  ControllerBank(uint8_t controlCount,
+                 uint8_t modeCount):
+    currentMode(0),
+    controlCount(controlCount),
+    modeCount(modeCount),
+    mutex(xSemaphoreCreateRecursiveMutex())
+  {
+    controls.reserve(controlCount);
   }
 
   // Constructor passing an array of ESP32 pin numbers to use as ADC channels
@@ -46,14 +54,16 @@ public:
                  uint8_t controlCount,
                  uint8_t modeCount,
                  uint16_t topOfRange):
-      currentMode(0),
-      controlCount(controlCount),
-      modeCount(modeCount)
+    currentMode(0),
+    controlCount(controlCount),
+    modeCount(modeCount),
+    mutex(xSemaphoreCreateRecursiveMutex())
   {
-    sem = xSemaphoreCreateMutex();
     for (uint8_t n(0); n < controlCount; ++n)
     {
       controls.push_back(MultiModeCtrl(std::make_shared<ESP32_ADC_Channel>(pins[n]), modeCount, topOfRange));
+      vals.push_back(0);
+      locks.push_back(0);
     }
   }
 
@@ -61,21 +71,31 @@ public:
   //   channelCount: number of physical channels (note: starts at 0; may want to allow using only a subset of available channels)
   //   modeCount:    number of modes / pages / virtual controller scenes
   //   topOfRange:   highest control value that you want to return
-  ControllerBank(MCP_ADC* pADC, uint8_t channelCount, uint8_t modeCount, uint16_t topOfRange)
+  ControllerBank(MCP_ADC* pADC,
+                 uint8_t channelCount,
+                 uint8_t modeCount,
+                 uint16_t topOfRange):
+    mutex(xSemaphoreCreateRecursiveMutex())
   {
-    sem = xSemaphoreCreateMutex();
     for (uint8_t n(0); n < channelCount; ++n)
     {
       controls.push_back(MultiModeCtrl(std::make_shared<MCP_Channel>(pADC, n), modeCount, topOfRange));
+      vals.push_back(0);
+      locks.push_back(0);
     }
   }
 
-  ControllerBank(std::shared_ptr<MCP_ADC>pADC, uint8_t channelCount, uint8_t modeCount, uint16_t topOfRange)
+  ControllerBank(std::shared_ptr<MCP_ADC>pADC,
+                 uint8_t channelCount,
+                 uint8_t modeCount,
+                 uint16_t topOfRange):
+    mutex(xSemaphoreCreateRecursiveMutex())
   {
-    sem = xSemaphoreCreateMutex();
     for (uint8_t n(0); n < channelCount; ++n)
     {
       controls.push_back(MultiModeCtrl(std::make_shared<MCP_Channel>(pADC, n), modeCount, topOfRange));
+      vals.push_back(0);
+      locks.push_back(0);
     }
   }
 
@@ -87,7 +107,8 @@ public:
                  uint8_t controlCount,
                  uint8_t resolution,
                  uint8_t modeCount,
-                 uint16_t topOfRange)
+                 uint16_t topOfRange):
+    mutex(xSemaphoreCreateRecursiveMutex())
   {
     std::shared_ptr<MCP_ADC>pADC(nullptr);
 
@@ -156,7 +177,28 @@ public:
 
     assert(pADC != nullptr);
     pADC->setGPIOpins(clock, miso, mosi, cs);
-    ControllerBank(pADC, controlCount, modeCount, topOfRange);
+    this->modeCount    = modeCount;
+    this->controlCount = controlCount;
+
+    for (uint8_t n(0); n < controlCount; ++n)
+    {
+      controls.push_back(MultiModeCtrl(std::make_shared<MCP_Channel>(pADC, n), modeCount, topOfRange));
+      vals.push_back(0);
+      locks.push_back(0);
+    }
+  }
+
+  void init(const uint8_t *pins,
+            uint16_t topOfRange)
+  {
+    for (uint8_t n(0); n < controlCount; ++n)
+    {
+      pinMode(pins[n], INPUT);
+      auto pESP_ADC = std::make_shared<ESP32_ADC_Channel>(pins[n]);
+      controls.push_back(MultiModeCtrl(pESP_ADC, modeCount, topOfRange));
+      vals.push_back(0);
+      locks.push_back(0);
+    }
   }
 
   // Pass an array containing the indices of the hardware elements you want in the order you want to access them,
@@ -197,44 +239,59 @@ public:
 
   void selectScene(uint8_t sceneIdx, bool reqUnlock = true)
   {
-    xSemaphoreTake(sem, 20);
+    lock();
     currentMode = sceneIdx;
     for (uint8_t n(0); n < controlCount; ++n)
     {
       controls[getPositionMappedIndex(n)].selectMode(currentMode, reqUnlock);
     }
-    xSemaphoreGive(sem);
+    unlock();
   }
 
   void service()
   {
-    if (!xSemaphoreTake(sem, 10))
-    {
-      assert(false);
-      return;
-    }
-
+    lock();
     for (uint8_t n(0); n < controlCount; ++n)
     {
-      controls[getPositionMappedIndex(n)].service();
+      getPtr(n)->service();
     }
-    xSemaphoreGive(sem);
+    unlock();
   }
 
+  // Call this once to update all the read() values. Saves a bunch of mutex calls.
+  void readAll(uint16_t *getVals = nullptr, bool *getLocks = nullptr)
+  {
+    lock();
+    for (uint8_t n = 0; n < controlCount; ++n)
+    {
+      vals[n] = getPtr(n)->read();
+      if (getVals)
+      {
+        getVals[n] = vals[n];
+      }
+
+      locks[n] = (getPtr(n)->getLockState() != STATE_UNLOCKED);
+      if (getLocks)
+      {
+        getLocks[n] = locks[n];
+      }
+    }
+    unlock();
+  }
 
   uint16_t read(uint8_t controlIdx)
   {
-    xSemaphoreTake(sem, 10);
-    uint16_t ret = controls[getPositionMappedIndex(controlIdx)].read();
-    xSemaphoreGive(sem);
+    lock();
+    uint16_t ret = vals[controlIdx];
+    unlock();
     return ret;
   }
 
   bool isLocked(uint8_t controlIdx)
   {
-    xSemaphoreTake(sem, 10);
-    bool ret = (controls[getPositionMappedIndex(controlIdx)].getLockState() != STATE_UNLOCKED);
-    xSemaphoreGive(sem);
+    lock();
+    bool ret = locks[controlIdx];
+    unlock();
     return ret;
   }
 };
