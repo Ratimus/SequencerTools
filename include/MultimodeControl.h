@@ -16,6 +16,7 @@ private:
   volatile uint8_t activeIndex;
   uint8_t numModes;
 
+  static inline const TickType_t PATIENCE = 25;
   std::vector<std::shared_ptr<ControlObject>> pVirtualCtrls;
 
   std::shared_ptr<ControlObject> getPtr(int8_t idx = -1)
@@ -32,12 +33,12 @@ private:
 
   bool lock()
   {
-    return (pdTRUE == xSemaphoreTake(mutex, 1));
+    return (pdTRUE == xSemaphoreTakeRecursive(mutex, PATIENCE));
   }
 
   void unlock()
   {
-    xSemaphoreGive(mutex);
+    xSemaphoreGiveRecursive(mutex);
   }
 
   void lockControl()
@@ -47,6 +48,7 @@ private:
       getPtr()->lockControl();
     }
   }
+
 public:
 
   MultiModeCtrl(ADC_Object *inAdc,
@@ -59,7 +61,11 @@ public:
     lock();
     for (uint8_t mode = 0; mode < numModes; ++mode)
     {
-      pVirtualCtrls.push_back(std::make_shared<ControlObject>(inAdc, topOfRange + 1, defaultVal));
+      pVirtualCtrls.push_back(
+        std::make_shared<ControlObject>(
+          inAdc,
+          topOfRange + 1,
+          defaultVal));
     }
 
     activeIndex = 0;
@@ -70,13 +76,17 @@ public:
                 uint8_t  numModes,
                 uint16_t topOfRange,
                 uint16_t defaultVal = 0):
-      numModes(numModes)
+    numModes(numModes)
   {
     mutex = xSemaphoreCreateRecursiveMutex();
     lock();
     for (uint8_t mode = 0; mode < numModes; ++mode)
     {
-      pVirtualCtrls.push_back(std::make_shared<ControlObject>(inAdc, topOfRange + 1, defaultVal));
+      pVirtualCtrls.push_back(
+        std::make_shared<ControlObject>(
+          inAdc,
+          topOfRange + 1,
+          defaultVal));
     }
 
     activeIndex = 0;

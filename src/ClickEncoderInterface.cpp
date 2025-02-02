@@ -17,15 +17,6 @@ ClickEncoderInterface::ClickEncoderInterface(ClickEncoder *Enc, int8_t sense):
 { ; }
 
 
-ClickEncoderInterface::ClickEncoderInterface(HW_InterruptedClickEncoder *Enc, int8_t sense):
-  pEncoder(Enc),
-  pos(0),
-  oldPos(0),
-  heldClicked(0),
-  mutex(xSemaphoreCreateRecursiveMutex())
-{ ; }
-
-
 ClickEncoderInterface::ClickEncoderInterface(
     uint8_t A,
     uint8_t B,

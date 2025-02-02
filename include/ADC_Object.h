@@ -19,7 +19,6 @@ const uint8_t MAX_BUFFER_SIZE(128);
 //  min:         lowest measurable value the HW will report
 //  max:         highest measurable value the HW will report
 //
-//  getRawValue: returns measured value from ADC channel
 //  read:        returns a value between 0 and 4095
 class ADC_Object
 {
@@ -285,7 +284,7 @@ public:
 
   virtual void service(void) override
   {
-    pADC->service();
+        pADC->service();
     uint16_t newestReading = pADC->read();
 
     if (pdTRUE != lock())

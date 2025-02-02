@@ -236,15 +236,3 @@ ButtonState ClickEncoder::readButton(void)
   return ret;
 }
 
-
-void IRAM_ATTR encoderHW_ISR()
-{
-  hwBaseEncoder.onPinChange();
-}
-
-
-void attachEncoderISR()
-{
-  attachInterrupt(hwBaseEncoder.pinA, encoderHW_ISR, CHANGE);
-  attachInterrupt(hwBaseEncoder.pinB, encoderHW_ISR, CHANGE);
-}

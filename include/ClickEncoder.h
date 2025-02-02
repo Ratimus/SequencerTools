@@ -73,29 +73,4 @@ public:
 };
 
 
-// ----------------------------------------------------------------------------
-class HW_InterruptedClickEncoder : public ClickEncoder
-{
-
-public:
-
-  HW_InterruptedClickEncoder(int8_t A,
-                             int8_t B,
-                             int8_t BTN,
-                             uint8_t stepsPerNotch = 4,
-                             bool usePullResistor  = true):
-    ClickEncoder(A, B, BTN, stepsPerNotch, usePullResistor)
-  { ; }
-
-  virtual void service(void) override
-  {
-    hwButton->service();
-  }
-
-  friend void attachEncoderISR();
-};
-
-extern HW_InterruptedClickEncoder hwBaseEncoder;
-
-
 #endif // __have__ClickEncoder_h__

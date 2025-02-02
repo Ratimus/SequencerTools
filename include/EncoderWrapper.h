@@ -36,12 +36,16 @@ public:
   int peek(void) override
   {
     int ret = encEvnts::None;
-    xSemaphoreTake(mutex, 10);
+    if (xSemaphoreTakeRecursive(mutex, 10) != pdTRUE)
+    {
+      return ret;
+    }
+
     if (!events.empty())
     {
       ret = events.back();
     }
-    xSemaphoreGive(mutex);
+    xSemaphoreGiveRecursive(mutex);
     return ret;
   }
 
@@ -57,10 +61,15 @@ public:
       return Menu::options->navCodes[noCmd].ch;
     }
 
+
+    if (xSemaphoreTakeRecursive(mutex, 10)!= pdTRUE)
+    {
+      return encEvnts::None;
+    }
+
     int ret = peek();
-    xSemaphoreTake(mutex, 10);
     events.pop_back();
-    xSemaphoreGive(mutex);
+    xSemaphoreGiveRecursive(mutex);
     return ret;
   }
 
@@ -68,9 +77,9 @@ public:
   {
     while (available())
     {
-      xSemaphoreTake(mutex, 10);
+      xSemaphoreTakeRecursive(mutex, 10);
       events.pop_back();
-      xSemaphoreGive(mutex);
+      xSemaphoreGiveRecursive(mutex);
     }
 
     encoderInterface.flush();
@@ -78,6 +87,7 @@ public:
 
   void service()
   {
+    xSemaphoreTakeRecursive(mutex, 10);
     encoderInterface.service();
     switch(encoderInterface.getEvent())
     {
@@ -107,6 +117,7 @@ public:
       default:
         break;
     }
+    xSemaphoreGiveRecursive(mutex);
   }
 };
 

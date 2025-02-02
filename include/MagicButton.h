@@ -54,7 +54,8 @@ const uint16_t HOLDTIME(350);        // Report held button after time
 
 class MagicButton
 {
-private:
+protected:
+  inline static const TickType_t PATIENCE = 10;
 
   int8_t   pin;         // HW pin
   bool     pullup;      // Set TRUE to enable pullup resistor if active low
@@ -67,15 +68,35 @@ private:
   volatile long long debounceTS;
   volatile uint16_t buff;        // Moving window to record multiple readings
 
-  virtual bool getRawVal()
+  bool lock()
+  {
+    if (xSemaphoreTakeRecursive(mutex, PATIENCE) != pdTRUE)
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  void unlock()
+  {
+    xSemaphoreGiveRecursive(mutex);
+  }
+
+  virtual bool readPin()
   {
     if (pin < 0)
     {
       return 0;
     }
 
-    return pullup ^ (bool)directRead(pin);
+    lock();
+    bool ret = pullup ^ (bool)directRead(pin);
+    unlock();
+    return ret;
   }
+
+  SemaphoreHandle_t mutex;
 
 #ifdef DEBUG_BUTTON_STATES
   ButtonState tmpState[2];
@@ -94,6 +115,7 @@ public:
     pullup(pullup),
     outputCleared(1),
     doubleClickable(doubleClickable),
+    mutex(xSemaphoreCreateRecursiveMutex()),
     state{ButtonState::Open, ButtonState::Open}
   {
     if (pin != -1)
@@ -131,10 +153,13 @@ public:
     _SHARED_MUX->service();
   }
 
-  virtual bool getRawVal(void) override
+  virtual bool readPin(void) override
   {
+    lock();
     _REGISTER = _SHARED_MUX->getReg();
-    return _REGISTER & _BITMASK;
+    bool ret = _REGISTER & _BITMASK;
+    unlock();
+    return ret;
   }
 };
 

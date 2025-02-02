@@ -61,8 +61,8 @@ public:
   {
     if (!lock())
     {
-      Serial.println("shit, not initting");
-      return;
+      Serial.println("ClickEncoderInterface not initting");
+      while(1);
     }
     pos     += pEncoder->readPosition();
     btnState = pEncoder->readButton();
@@ -71,7 +71,6 @@ public:
 
   // Constructor using ref. to existing encoder driver object
   explicit ClickEncoderInterface(ClickEncoder *Enc, int8_t sense);
-  explicit ClickEncoderInterface(HW_InterruptedClickEncoder *Enc, int8_t sense);
 
   ClickEncoderInterface(uint8_t A,
                         uint8_t B,

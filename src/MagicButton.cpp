@@ -11,10 +11,15 @@
 // persist until reported and reset by separate call to read()
 void MagicButton::service()
 {
+  if (!lock())
+  {
+    return;
+  }
+
   long long timeStamp = 0;
 
   // Shift buffer by one and tack the current value on the end
-  buff = (buff << 1) | getRawVal();
+  buff = (buff << 1) | readPin();
 
   timeStamp = millis();
 
@@ -40,6 +45,12 @@ void MagicButton::service()
   }
 
   long timeSinceChange = timeStamp - debounceTS;
+  unlock();
+
+  if (!lock())
+  {
+    return;
+  }
 
   switch(state[0])
   {
@@ -207,6 +218,7 @@ void MagicButton::service()
   tmpState[1] = state[1];
   //////////////////////////////////////////
 #endif
+  unlock();
 };
 
 // Report current state and free to record further clicks.
@@ -214,13 +226,19 @@ void MagicButton::service()
 // HELD or PRESSED will be returned on each call
 ButtonState MagicButton::read(void)
 {
-  service();
+  if (!lock())
+  {
+    Serial.println("magic button isn't");
+    return state[0];
+  }
+
   ButtonState retVal;
   if (state[0] == ButtonState::Released)
   {
     outputCleared = true;
   }
   retVal = state[1];
+  unlock();
   return retVal;
 }
 
