@@ -11,7 +11,6 @@
 #include <CD4067.h>
 #include <memory>
 #include <DirectIO.h>
-#include <freertos/semphr.h>
 
 
 // #define DEBUG_BUTTON_STATES
@@ -68,21 +67,6 @@ protected:
   volatile long long debounceTS;
   volatile uint16_t buff;        // Moving window to record multiple readings
 
-  bool lock()
-  {
-    if (xSemaphoreTakeRecursive(mutex, PATIENCE) != pdTRUE)
-    {
-      return false;
-    }
-
-    return true;
-  }
-
-  void unlock()
-  {
-    xSemaphoreGiveRecursive(mutex);
-  }
-
   virtual bool readPin()
   {
     if (pin < 0)
@@ -90,13 +74,11 @@ protected:
       return 0;
     }
 
-    lock();
+    cli();
     bool ret = pullup ^ (bool)directRead(pin);
-    unlock();
+    sei();
     return ret;
   }
-
-  SemaphoreHandle_t mutex;
 
 #ifdef DEBUG_BUTTON_STATES
   ButtonState tmpState[2];
@@ -115,7 +97,6 @@ public:
     pullup(pullup),
     outputCleared(1),
     doubleClickable(doubleClickable),
-    mutex(xSemaphoreCreateRecursiveMutex()),
     state{ButtonState::Open, ButtonState::Open}
   {
     if (pin != -1)
@@ -155,10 +136,10 @@ public:
 
   virtual bool readPin(void) override
   {
-    lock();
+    cli();
     _REGISTER = _SHARED_MUX->getReg();
     bool ret = _REGISTER & _BITMASK;
-    unlock();
+    sei();
     return ret;
   }
 };
