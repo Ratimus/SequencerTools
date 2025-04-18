@@ -2,17 +2,23 @@
 #include <DirectIO.h>
 
 
-HW_Mux::HW_Mux(const uint8_t* const addrPins, uint8_t ioPin):
-    IO(ioPin),
-    MUXREG(0),
-    resourceMutex(xSemaphoreCreateRecursiveMutex())
+HW_Mux::HW_Mux(const uint8_t* const addrPins, uint8_t ioPin_0, uint8_t ioPin_1):
+    IO_0(ioPin_0),
+    IO_1(ioPin_1),
+    MUXREG0(0),
+    MUXREG1(0)
 {
   for (auto n(0); n < 4; ++n)   // C'mon C++... if Python's got enumerate(), why can't we???
   {
     ADDR[n] = addrPins[n];
     pinMode(ADDR[n], OUTPUT);
   }
-  pinMode(IO, INPUT_PULLUP);
+  pinMode(IO_0, INPUT_PULLUP);
+
+  if (IO_1 != 255)
+  {
+    pinMode(IO_1, INPUT_PULLUP);
+  }
 }
 
 
@@ -43,18 +49,20 @@ void HW_Mux::muxEnable(uint8_t channel, uint8_t delayMicros)
 }
 
 
-uint16_t HW_Mux::getReg(void)
+uint16_t HW_Mux::getReg0(void)
 {
-  uint16_t ret = 0;
-  if (pdTRUE == xSemaphoreTakeRecursive(resourceMutex, 10))
-  {
-    ret = MUXREG;
-    xSemaphoreGiveRecursive(resourceMutex);
-  }
-  else
-  {
-    Serial.println("muxgetreg fail");
-  }
+  cli();
+  uint16_t ret = MUXREG0;
+  sei();
+  return ret;
+}
+
+
+uint16_t HW_Mux::getReg1(void)
+{
+  cli();
+  uint16_t ret = MUXREG1;
+  sei();
   return ret;
 }
 
