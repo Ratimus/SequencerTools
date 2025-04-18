@@ -33,8 +33,7 @@ ClickEncoder::ClickEncoder(int8_t A,
    pinA(A),
    pinB(B),
    lastEncoded(0),
-   activeLow(usePulllResistor),
-   encoderMutex(xSemaphoreCreateRecursiveMutex())
+   activeLow(usePulllResistor)
 {
   if (pinA != -1)
   {
@@ -58,7 +57,7 @@ ClickEncoder::ClickEncoder(int8_t A,
 //
 void ClickEncoder::service(void)
 {
-  lock();
+  cli();
   long encoded = 0;
   long tmpMSB  = (long)readA();
   long tmpLSB  = (long)readB();
@@ -149,7 +148,7 @@ void ClickEncoder::service(void)
     lastEncoded = encoded;
   }
 
-  unlock();
+  sei();
   hwButton->service();
 }
 
@@ -166,21 +165,9 @@ bool ClickEncoder::readB()
 }
 
 
-bool ClickEncoder::lock(void)
-{
-  return (xSemaphoreTakeRecursive(encoderMutex, MUTEX_TIMEOUT) == pdTRUE);
-}
-
-
-void ClickEncoder::unlock(void)
-{
-  xSemaphoreGiveRecursive(encoderMutex);
-}
-
-
 void ClickEncoder::onPinChange()
 {
-  lock();
+  cli();
   MSB = readB();
   LSB = readA();
 
@@ -210,16 +197,16 @@ void ClickEncoder::onPinChange()
   }
 
   lastEncoded = encoded;
-  unlock();
+  sei();
 }
 
 // ----------------------------------------------------------------------------
 
 int16_t ClickEncoder::readPosition(void)
 {
-  lock();
+  cli();
   int16_t ret = position;
-  unlock();
+  sei();
 
   return ret;
 }
@@ -230,9 +217,8 @@ int16_t ClickEncoder::readPosition(void)
 // persists until this function is called && encBtnState has been released
 ButtonState ClickEncoder::readButton(void)
 {
-  lock();
+  // read() takes care of interrupts for us, so no cli();
   ButtonState ret = hwButton->read();
-  unlock();
   return ret;
 }
 

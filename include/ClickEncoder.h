@@ -18,7 +18,6 @@
 #include <RatFuncs.h>
 
 
-#define MUTEX_TIMEOUT 25
 // ----------------------------------------------------------------------------
 
 class ClickEncoder
@@ -32,17 +31,12 @@ public:
                uint8_t stepsPerNotch = 4,
                bool usePullResistor  = true);
 
-  SemaphoreHandle_t encoderMutex;
-
   // Call every 1 ms in ISR
   virtual void service(void);
 
   // Get current state and free for further updates
   int16_t      readPosition (void);
   ButtonState  readButton   (void);
-
-  bool lock(void);
-  void unlock(void);
 
 protected:
 
