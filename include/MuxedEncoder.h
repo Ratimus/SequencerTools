@@ -6,18 +6,20 @@ class MuxedEncoder : public ClickEncoder
 {
 protected:
 
-  static inline uint16_t _REGISTER = 0;
+  uint16_t _REGISTER = 0;
   static inline std::shared_ptr<HW_Mux> _SHARED_MUX = NULL;
 
   const  uint16_t _BITMASK[2];
 
   virtual bool readA() override;
   virtual bool readB() override;
+  uint8_t reg_num;
 
 public:
 
   MuxedEncoder(const uint8_t * const pinNums,
-               uint8_t stepsPerNotch);
+               uint8_t stepsPerNotch,
+               uint8_t reg = 0);
 
   static void setMux(HW_Mux *pMux);
 

@@ -28,7 +28,6 @@ public:
     {
       muxEnable(n, 10);
       (void)directRead(IO_0);
-      (void)directRead(IO_1);
       bitWrite(MUXREG0, n, !directRead(IO_0));
       if (IO_1 != 255)
       {

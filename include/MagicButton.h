@@ -114,13 +114,15 @@ class MuxedButton : public MagicButton
 {
   static inline std::shared_ptr<HW_Mux> _SHARED_MUX = NULL;
   const uint16_t _BITMASK;
-  static inline uint16_t _REGISTER = 0;
+  uint16_t _REGISTER;
+  uint8_t reg_num;
 
 public:
 
-  MuxedButton(uint16_t bit):
+  MuxedButton(uint16_t bit, uint8_t reg = 0):
     MagicButton(-1, true, true),
-    _BITMASK((uint16_t)1 << bit)
+    _BITMASK((uint16_t)1 << bit),
+    reg_num(reg)
   { ; }
 
   static void setMux(HW_Mux *pMux)
@@ -137,7 +139,15 @@ public:
   virtual bool readPin(void) override
   {
     cli();
-    _REGISTER = _SHARED_MUX->getReg();
+    if (reg_num)
+    {
+      _REGISTER = _SHARED_MUX->getReg1();
+    }
+    else
+    {
+      _REGISTER = _SHARED_MUX->getReg0();
+    }
+
     bool ret = _REGISTER & _BITMASK;
     sei();
     return ret;

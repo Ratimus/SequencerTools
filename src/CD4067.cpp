@@ -13,11 +13,11 @@ HW_Mux::HW_Mux(const uint8_t* const addrPins, uint8_t ioPin_0, uint8_t ioPin_1):
     ADDR[n] = addrPins[n];
     pinMode(ADDR[n], OUTPUT);
   }
-  pinMode(IO_0, INPUT_PULLUP);
+  pinMode(IO_0, INPUT);
 
   if (IO_1 != 255)
   {
-    pinMode(IO_1, INPUT_PULLUP);
+    pinMode(IO_1, INPUT);
   }
 }
 

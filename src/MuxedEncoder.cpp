@@ -2,11 +2,14 @@
 
 
 MuxedEncoder::MuxedEncoder(const uint8_t * const pinNums,
-                           uint8_t stepsPerNotch):
+                           uint8_t stepsPerNotch,
+                           uint8_t reg):
   ClickEncoder(-1, -1, -1, stepsPerNotch, true),
-  _BITMASK{uint16_t((uint16_t)1 << pinNums[0]), uint16_t((uint16_t)1 << pinNums[1])}
+  _BITMASK{uint16_t((uint16_t)1 << pinNums[0]), uint16_t((uint16_t)1 << pinNums[1])},
+  _REGISTER(0),
+  reg_num(reg)
 {
-  hwButton = std::make_shared<MuxedButton>(pinNums[2]);
+  hwButton = std::make_shared<MuxedButton>(pinNums[2], reg_num);
 }
 
 
@@ -38,7 +41,15 @@ void MuxedEncoder::updateReg()
 
 void MuxedEncoder::service()
 {
-  _REGISTER = _SHARED_MUX->getReg();
+  if (reg_num)
+  {
+    _REGISTER = _SHARED_MUX->getReg1();
+  }
+  else
+  {
+    _REGISTER = _SHARED_MUX->getReg0();
+  }
+
   ClickEncoder::service();
 }
 
