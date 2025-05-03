@@ -2,27 +2,91 @@
 #include <DirectIO.h>
 
 
-HW_Mux::HW_Mux(const uint8_t* const addrPins, uint8_t ioPin_0, uint8_t ioPin_1):
-    IO_0(ioPin_0),
-    IO_1(ioPin_1),
-    MUXREG0(0),
-    MUXREG1(0)
+CD4067::CD4067(ESP32AnalogRead *pESP_ADC, uint16_t mask = 0, uint16_t mode):
+pESP_ADC(pESP_ADC),
+IO_PIN(-1),
+pin_mask(mask)
 {
-  for (auto n(0); n < 4; ++n)   // C'mon C++... if Python's got enumerate(), why can't we???
+  // Pins are active via pin_mask, but we need to add map items for analog
+  for (uint8_t n = 0; n < 16; ++n)
   {
-    ADDR[n] = addrPins[n];
-    pinMode(ADDR[n], OUTPUT);
-  }
-  pinMode(IO_0, INPUT);
-
-  if (IO_1 != 255)
-  {
-    pinMode(IO_1, INPUT);
+    if (mode & (uint16_t)BITMASK_32[n])
+    {
+      enable_pin(n, true);
+    }
   }
 }
 
 
-void HW_Mux::muxEnable(uint8_t channel, uint8_t delayMicros)
+void CD4067::enable_pin(uint8_t pin, bool is_analog)
+{
+  if (is_analog)
+  {
+    assert (pESP_ADC);
+    ANALOG_REG[pin] = 0;
+  }
+
+  pin_mask |= (uint16_t)BITMASK_32[pin];
+}
+
+
+void CD4067::disable_pin(uint8_t pin)
+{
+  // Note that this doesn't remove analog pins from the map
+  pin_mask &= (uint16_t)~BITMASK_32[pin];
+}
+
+
+void CD4067::read_pin(uint8_t pin)
+{
+  // Inactive pin
+  if (!(pin_mask & (uint16_t)BITMASK_32[pin]))
+  {
+    return;
+  }
+
+  if (pESP_ADC)
+  {
+    // Digital pin
+    if (!(pin_mode & (uint16_t)BITMASK_32[pin]))
+    {
+      MUXREG ^= (pESP_ADC->readRaw() < 1000);
+      return;
+    }
+
+    ANALOG_REG[pin] = pESP_ADC->readRaw();
+    return;
+  }
+
+  MUXREG ^= directRead(IO_PIN);
+}
+
+
+inline uint16_t CD4067::get(uint8_t pin)
+{
+  uint16_t ret = 0;
+  uint16_t access_mask = (uint16_t)BITMASK_32[pin];
+  if (!(pin_mask & access_mask))
+  {
+    return ret;
+  }
+
+  cli();
+  if (!(pin_mode & access_mask))
+  {
+    ret = MUXREG & access_mask;
+  }
+  else
+  {
+    ret = ANALOG_REG[pin];
+  }
+  sei();
+
+  return ret;
+}
+
+
+void MultiMux::muxEnable(uint8_t channel, uint8_t delayMicros)
 {
   static uint8_t CURRENT_CHANNEL = 0b00001111;
   uint8_t diff = CURRENT_CHANNEL ^ channel;
@@ -49,115 +113,8 @@ void HW_Mux::muxEnable(uint8_t channel, uint8_t delayMicros)
 }
 
 
-uint16_t HW_Mux::getReg0(void)
+// If you only have one mux, you don't need to pass the object index
+inline uint16_t MultiMux::get_val(uint8_t pin, uint8_t object_index)
 {
-  cli();
-  uint16_t ret = MUXREG0;
-  sei();
-  return ret;
+  return vMux[object_index].get(pin);
 }
-
-
-uint16_t HW_Mux::getReg1(void)
-{
-  cli();
-  uint16_t ret = MUXREG1;
-  sei();
-  return ret;
-}
-
-/*
-ONE WAY TO DO VIRTUAL PINS:
-
-class VirtualPin
-{
-  const uint8_t ID;
-  virtual bool read() = 0;
-  friend class PinLibrary;
-
-public:
-
-  CTOR();
-};
-
-class PinLibrary
-{
-  VirtualPins pins[];
-
-public:
-
-  uint8_t addPin(args)
-  {
-    std::shared_ptr<VirtualPin> newPin = std::make_shared<VirtualPin>(args, nextID)
-    pins.push_back(newPin);
-    return newPin->ID;
-  }
-
-  bool read(uint8_t pinNum)
-  {
-    return pins.at(pinNum)->read();
-  }
-};
-/////////////////////////////////////////////////////
-quicker, dirtier way?:
-
-class MuxedButton : public MagicButton
-{
-  static uint16_t MUX_REG;
-  static CD4067 MuxObject;
-  static uint8_t lastRead;
-
-public:
-
-  static void service(uint8_t serviceTime)
-  {
-    if (serviceTime == lastRead)
-    {
-      return;
-    }
-
-    lastRead = serviceTime;
-    MUX_REG = MuxObject.readMux();
-  }
-... ok, is there a mutex or lock in FreeRTOS that allows multiple concurrent reads but locks everything for writes?
-problem:
-  I have a register that I need to make ReadOnly.
-  I only want to service it once per cycle, and I only want to have to lock, read, and unlock it once, allowing any
-    objects that depend on it to read from it freely without having to re-copy the entire register every time.
-  I probably don't want e.g. 8 mutices.
-
-  Do this:
-
-  ISR()
-  {
-    mux.service();
-    // don't need thread-safe copy of mux_reg since we're using it in the same scope that updated it
-    timestamp = millis();
-    for (buttons in muxedButtonArray)
-    {
-      button.service(mux_register & 1 << n, timestamp);
-    }
-  }
-
-  class MuxedButton : public MagicButton
-  {
-    const uint16_t * const register;
-    const uint8_t bitNum;
-
-    void service(const long long * const timestamp)
-    {
-      newReadVal = (*register) & (1 >> bitNum);
-      newTimeVal = (*timestamp);
-
-      // ... do everything else like a regular MagicButton
-    }
-
-    problem: MagicButton needs to support pin == -1???
-  }
-
-  loop() { mux}
-};
-
-
-
-*/
