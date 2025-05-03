@@ -6,17 +6,13 @@
 // Ryan "Ratimus" Richardson
 // Nov. 2022
 // ----------------------------------------------------------------------------
-
-#ifndef CLICK_ENCODER_DOT_AITCH
-#define CLICK_ENCODER_DOT_AITCH
-
 // ----------------------------------------------------------------------------
+#pragma once
 
 #include <Arduino.h>
 #include <MagicButton.h>
 #include <memory>
 #include <RatFuncs.h>
-
 
 // ----------------------------------------------------------------------------
 
@@ -59,12 +55,9 @@ protected:
   virtual bool readA();
   virtual bool readB();
 
-  std::shared_ptr<MagicButton> hwButton;
+  std::unique_ptr<MagicButton> hwButton;
 
 public:
 
   void onPinChange();
 };
-
-
-#endif // __have__ClickEncoder_h__

@@ -37,7 +37,7 @@ ClickEncoder::ClickEncoder(int8_t A,
 {
   if (pinA != -1)
   {
-    hwButton = std::make_shared<MagicButton>(BTN, activeLow, doubleClickable);
+    hwButton = std::make_unique<MagicButton>(BTN, activeLow, doubleClickable);
     uint8_t configType = activeLow ? INPUT_PULLUP : INPUT;
     pinMode(pinA,   configType);
     pinMode(pinB,   configType);

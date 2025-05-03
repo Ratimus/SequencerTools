@@ -72,10 +72,10 @@ class LockingCtrl
 protected:
   std::shared_ptr<HardwareCtrl> pHwCtrl_;
   volatile LockState state_;
-  int16_t min_;
-  int16_t max_;
-  int16_t lockVal_;
-  uint16_t threshInt_;
+  int16_t   min_;
+  int16_t   max_;
+  int16_t   lockVal_;
+  uint16_t  threshInt_;
   LockState setLockState_(LockState state);
 
 public:

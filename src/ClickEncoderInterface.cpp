@@ -12,8 +12,7 @@ ClickEncoderInterface::ClickEncoderInterface(ClickEncoder *Enc, int8_t sense):
   pEncoder(Enc),
   pos(0),
   oldPos(0),
-  heldClicked(0),
-  mutex(xSemaphoreCreateRecursiveMutex())
+  heldClicked(0)
 { ; }
 
 
@@ -27,18 +26,13 @@ ClickEncoderInterface::ClickEncoderInterface(
   pEncoder(std::make_shared<ClickEncoder>(A, B, BTN, stepsPerNotch, usePullResistors)),
   pos(0),
   oldPos(0),
-  heldClicked(0),
-  mutex(xSemaphoreCreateRecursiveMutex())
+  heldClicked(0)
 { ; }
 
 
 encEvnts ClickEncoderInterface::getEvent(void)
 {
-  if (!lock())
-  {
-    Serial.println("shit no encoder semtake");
-    return encEvnts::None;
-  }
+  cli();
 
   ButtonState prevState    = btnState;
   oldPos                   = pos;
@@ -46,7 +40,7 @@ encEvnts ClickEncoderInterface::getEvent(void)
   btnState                 = pEncoder->readButton();
   ButtonState currentState = btnState;
   int deltaPos             = pos - oldPos;
-  unlock();
+  sei();
 
   // Right Click
   if (deltaPos <= -1)
@@ -116,12 +110,12 @@ encEvnts ClickEncoderInterface::getEvent(void)
 
 void ClickEncoderInterface::flush()
 {
-  assert(xSemaphoreTakeRecursive(mutex, 10) == pdTRUE);
+  cli();
   btnState = ButtonState::Open;
   pEncoder->readPosition();
   pEncoder->readButton();
   oldPos = pos;
-  xSemaphoreGiveRecursive(mutex);
+  sei();
 }
 // ButtonStates you may see in the wild:
 //  Open

@@ -11,7 +11,6 @@
 // persist until reported and reset by separate call to read()
 void MagicButton::service()
 {
-  cli();
   long long timeStamp = 0;
 
   // Shift buffer by one and tack the current value on the end
@@ -208,7 +207,6 @@ void MagicButton::service()
   tmpState[1] = state[1];
   //////////////////////////////////////////
 #endif
-  sei();
 };
 
 // Report current state and free to record further clicks.

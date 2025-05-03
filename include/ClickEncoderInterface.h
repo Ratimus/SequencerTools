@@ -37,36 +37,16 @@ protected:
   volatile int oldPos;
   volatile int pos;
 
-  SemaphoreHandle_t mutex;
   bool heldClicked;
 
 public:
 
-  bool lock()
-  {
-    if (xSemaphoreTakeRecursive(mutex, 10) == pdTRUE)
-    {
-      return true;
-    }
-
-    return false;
-  }
-
-  void unlock()
-  {
-    xSemaphoreGiveRecursive(mutex);
-  }
-
   inline void init()
   {
-    if (!lock())
-    {
-      Serial.println("ClickEncoderInterface not initting");
-      while(1);
-    }
+    cli();
     pos     += pEncoder->readPosition();
     btnState = pEncoder->readButton();
-    unlock();
+    sei();
   }
 
   // Constructor using ref. to existing encoder driver object
@@ -85,14 +65,7 @@ public:
 
   void service()
   {
-    if (!lock())
-    {
-      Serial.println("encoder IF semtake fail");
-      return;
-    }
-
     pEncoder->service();
-    unlock();
   }
 };
 

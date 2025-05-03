@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include <MultimodeControl.h>
 #include <vector>
-#include <freertos/semphr.h>
 
 class ControllerBank
 {
@@ -16,32 +15,13 @@ class ControllerBank
   std::vector<uint16_t>      vals;
   std::vector<uint8_t>       positionMapping;
 
-  SemaphoreHandle_t mutex;
-  static inline const TickType_t PATIENCE = 10;
-
-  bool lock()
-  {
-    if (xSemaphoreTakeRecursive(mutex, PATIENCE) != pdTRUE)
-    {
-      return false;
-    }
-
-    return true;
-  }
-
-  void unlock()
-  {
-    xSemaphoreGiveRecursive(mutex);
-  }
-
 public:
 
   ControllerBank(uint8_t controlCount,
                  uint8_t modeCount):
     currentMode(0),
     controlCount(controlCount),
-    modeCount(modeCount),
-    mutex(xSemaphoreCreateRecursiveMutex())
+    modeCount(modeCount)
   {
     controls.reserve(controlCount);
   }
@@ -56,8 +36,7 @@ public:
                  uint16_t topOfRange):
     currentMode(0),
     controlCount(controlCount),
-    modeCount(modeCount),
-    mutex(xSemaphoreCreateRecursiveMutex())
+    modeCount(modeCount)
   {
     for (uint8_t n(0); n < controlCount; ++n)
     {
@@ -74,8 +53,7 @@ public:
   ControllerBank(MCP_ADC* pADC,
                  uint8_t channelCount,
                  uint8_t modeCount,
-                 uint16_t topOfRange):
-    mutex(xSemaphoreCreateRecursiveMutex())
+                 uint16_t topOfRange)
   {
     for (uint8_t n(0); n < channelCount; ++n)
     {
@@ -88,8 +66,7 @@ public:
   ControllerBank(std::shared_ptr<MCP_ADC>pADC,
                  uint8_t channelCount,
                  uint8_t modeCount,
-                 uint16_t topOfRange):
-    mutex(xSemaphoreCreateRecursiveMutex())
+                 uint16_t topOfRange)
   {
     for (uint8_t n(0); n < channelCount; ++n)
     {
@@ -107,8 +84,7 @@ public:
                  uint8_t controlCount,
                  uint8_t resolution,
                  uint8_t modeCount,
-                 uint16_t topOfRange):
-    mutex(xSemaphoreCreateRecursiveMutex())
+                 uint16_t topOfRange)
   {
     std::shared_ptr<MCP_ADC>pADC(nullptr);
 
@@ -239,29 +215,27 @@ public:
 
   void selectScene(uint8_t sceneIdx, bool reqUnlock = true)
   {
-    lock();
+    cli();
     currentMode = sceneIdx;
     for (uint8_t n(0); n < controlCount; ++n)
     {
       controls[getPositionMappedIndex(n)].selectMode(currentMode, reqUnlock);
     }
-    unlock();
+    sei();
   }
 
   void service()
   {
-    lock();
     for (uint8_t n(0); n < controlCount; ++n)
     {
       getPtr(n)->service();
     }
-    unlock();
   }
 
-  // Call this once to update all the read() values. Saves a bunch of mutex calls.
-  void readAll(uint16_t *getVals = nullptr, bool *getLocks = nullptr)
+  // Call this once to update all the read() values
+  void update_vals(uint16_t *getVals = nullptr, bool *getLocks = nullptr)
   {
-    lock();
+    cli();
     for (uint8_t n = 0; n < controlCount; ++n)
     {
       vals[n] = getPtr(n)->read();
@@ -276,22 +250,18 @@ public:
         getLocks[n] = locks[n];
       }
     }
-    unlock();
+    sei();
   }
 
   uint16_t read(uint8_t controlIdx)
   {
-    lock();
     uint16_t ret = vals[controlIdx];
-    unlock();
     return ret;
   }
 
   bool isLocked(uint8_t controlIdx)
   {
-    lock();
     bool ret = locks[controlIdx];
-    unlock();
     return ret;
   }
 };

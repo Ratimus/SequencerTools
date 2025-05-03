@@ -9,7 +9,6 @@
 #define GATE_IN_H
 #include "Arduino.h"
 #include "DirectIO.h"
-#include <freertos/semphr.h>
 
 
 // Abstract Base Class for reading and storing the instantaneous states and keeping
@@ -34,15 +33,12 @@ protected:
 
   virtual uint32_t readPins() = 0;
 
-  SemaphoreHandle_t mutex;
-
   // This is an Abstract Base Class, meant only to be inherited from, so limit access to its
   // constructor
   GateInABC(const uint8_t numGates):
     NUM_GATES(numGates)
   {
     assert(numGates < 33);
-    mutex = xSemaphoreCreateRecursiveMutex();
     reset();
   }
 
@@ -51,12 +47,12 @@ public:
   // Return everything to defaults
   void reset()
   {
-    assert(xSemaphoreTakeRecursive(mutex, PATIENCE));
+    cli();
     _gates      = 0;
     _gatesDiff  = 0;
     _rising     = 0;
     _falling    = 0;
-    xSemaphoreGiveRecursive(mutex);
+    sei();
   }
 
   // Call this in an ISR or in a loop.
@@ -65,36 +61,33 @@ public:
   // trigger, you'll need to call this faster than that
   virtual void service()
   {
-    assert(pdTRUE == xSemaphoreTake(mutex, PATIENCE));
     uint32_t prev(_gates);
 
     _gates      = readPins();
     _gatesDiff  = _gates ^ prev;
     _rising    |= (_gatesDiff & _gates);
     _falling   |= (_gatesDiff & ~_gates);
-    xSemaphoreGive(mutex);
   }
 
   // If you get a rising edge on any given input, it will be stored until you read it.
   bool readRiseFlag(uint8_t gate)
   {
-    assert(xSemaphoreTake(mutex, PATIENCE));
+    cli();
     bool ret(bitRead(_rising, gate));
     bitWrite(_rising, gate, 0);
-    xSemaphoreGive(mutex);
+    sei();
     return ret;
   }
 
   // If you get a falling edge on any given input, it will be stored until you read it.
   bool readFallFlag(uint8_t gate)
   {
-    assert(xSemaphoreTake(mutex, PATIENCE));
+    cli();
     bool ret(bitRead(_falling, gate));
     bitWrite(_falling, gate, 0);
-    xSemaphoreGive(mutex);
+    sei();
     return ret;
   }
-
 
   virtual bool peekGate(uint8_t gate) = 0;
   virtual bool peekDiff(uint8_t gate) = 0;
@@ -151,25 +144,25 @@ public:
 
   virtual bool peekGate(uint8_t gate) override
   {
-    assert(xSemaphoreTake(mutex, PATIENCE));
+    cli();
     bool ret(_gates & (1 << gate));
-    xSemaphoreGive(mutex);
+    sei();
     return ret;
   }
 
   virtual bool peekDiff(uint8_t gate) override
   {
-    assert(xSemaphoreTake(mutex, PATIENCE));
+    cli();
     bool ret(_gatesDiff & (1 << gate));
-    xSemaphoreGive(mutex);
+    sei();
     return ret;
   }
 
   virtual bool anyDiff()
   {
-    assert(xSemaphoreTake(mutex, PATIENCE));
+    cli();
     bool ret = (_gatesDiff != 0);
-    xSemaphoreGive(mutex);
+    sei();
     return ret;
   }
 };

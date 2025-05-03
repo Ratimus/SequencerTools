@@ -9,7 +9,6 @@
 #include "ESP32AnalogRead.h"
 #include <memory>
 #include <list>
-#include <freertos/semphr.h>
 
 const uint8_t MAX_BUFFER_SIZE(128);
 
@@ -29,21 +28,6 @@ protected:
   uint16_t adcMax;
 
   static inline const TickType_t PATIENCE = 10;
-
-  bool lock()
-  {
-    if (xSemaphoreTakeRecursive(mutex, PATIENCE) != pdTRUE)
-    {
-      return false;
-    }
-
-    return true;
-  }
-
-  void unlock()
-  {
-    xSemaphoreGiveRecursive(mutex);
-  }
 
 public:
 
@@ -87,12 +71,6 @@ public:
 
   virtual void service(void) override
   {
-    if (pdTRUE != lock())
-    {
-      Serial.println("MCH svc semtake failed");
-      while (1);
-    }
-
     if ( (pADC == nullptr) || (channel == INVALID_CHANNEL) )
     {
       rawVal = adcMin;
@@ -101,7 +79,6 @@ public:
     {
       rawVal = pADC->analogRead(channel);
     }
-    unlock();
   }
 
   MCP_Channel():
@@ -129,14 +106,9 @@ public:
 
   virtual uint16_t read(void) override
   {
-    if (pdTRUE != lock())
-    {
-      Serial.println("MCH read semtake failed");
-      while (1);
-    }
-
+    cli();
     uint16_t ret = rawVal;
-    unlock();
+    sei();
     return ret;
   }
 };
@@ -172,12 +144,6 @@ public:
 
   virtual void service() override
   {
-    if (pdTRUE != lock())
-    {
-      Serial.println("e32 svc semtake failed");
-      while (1);
-    }
-
     if (pin == INVALID_CHANNEL)
     {
       rawVal = adcMin;
@@ -186,19 +152,13 @@ public:
     {
       rawVal = ADC.readRaw();
     }
-    unlock();
   }
 
   virtual uint16_t read() override
   {
-    if (pdTRUE != lock())
-    {
-      Serial.println("e32 read semtake failed");
-      while (1);
-    }
-
+    cli();
     uint16_t ret = rawVal;
-    unlock();
+    sei();
     return ret;
   }
 
@@ -269,29 +229,18 @@ public:
 
   void reset()
   {
-    if (pdTRUE != lock())
-    {
-      Serial.println("smth reset semtake failed");
-      while (1);
-    }
-
+    cli();
     memset(&readings, 0, sizeof(uint16_t) * buffSize);
     runningSum  = 0;
     sampleCount = 0;
     writeIndex = 0;
-    unlock();
+    sei();
   }
 
   virtual void service(void) override
   {
         pADC->service();
     uint16_t newestReading = pADC->read();
-
-    if (pdTRUE != lock())
-    {
-      Serial.println("smth svc semtake failed");
-      while (1);
-    }
 
     runningSum += newestReading;
     if (sampleCount == buffSize)
@@ -309,7 +258,6 @@ public:
       readings[sampleCount] = newestReading;
       ++sampleCount;
     }
-    unlock();
   }
 
   virtual uint16_t read(void) override
@@ -319,14 +267,9 @@ public:
       return pADC->getMin();
     }
 
-    if (pdTRUE != lock())
-    {
-      Serial.println("smth read semtake failed");
-      while (1);
-    }
-
+    cli();
     uint16_t ret = (uint16_t)(runningSum / (uint64_t)sampleCount);
-    unlock();
+    sei();
     return ret;
   }
 

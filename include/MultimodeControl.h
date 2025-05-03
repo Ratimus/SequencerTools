@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include <ADC_Object.h>
 #include <ControlObject.h>
-#include <freertos/semphr.h>
 
 ////////////////////////////////////////////////
 //
@@ -12,11 +11,10 @@
 class MultiModeCtrl
 {
 private:
-  SemaphoreHandle_t mutex;
-  volatile uint8_t activeIndex;
-  uint8_t numModes;
 
-  static inline const TickType_t PATIENCE = 25;
+  volatile uint8_t  activeIndex;
+  uint8_t           numModes;
+
   std::vector<std::shared_ptr<ControlObject>> pVirtualCtrls;
 
   std::shared_ptr<ControlObject> getPtr(int8_t idx = -1)
@@ -30,16 +28,6 @@ private:
   }
 
   friend class ControllerBank;
-
-  bool lock()
-  {
-    return (pdTRUE == xSemaphoreTakeRecursive(mutex, PATIENCE));
-  }
-
-  void unlock()
-  {
-    xSemaphoreGiveRecursive(mutex);
-  }
 
   void lockControl()
   {
@@ -57,8 +45,6 @@ public:
                 uint16_t defaultVal = 0):
       numModes(numModes)
   {
-    mutex = xSemaphoreCreateRecursiveMutex();
-    lock();
     for (uint8_t mode = 0; mode < numModes; ++mode)
     {
       pVirtualCtrls.push_back(
@@ -69,7 +55,6 @@ public:
     }
 
     activeIndex = 0;
-    unlock();
   }
 
   MultiModeCtrl(std::shared_ptr<ADC_Object>inAdc,
@@ -78,8 +63,6 @@ public:
                 uint16_t defaultVal = 0):
     numModes(numModes)
   {
-    mutex = xSemaphoreCreateRecursiveMutex();
-    lock();
     for (uint8_t mode = 0; mode < numModes; ++mode)
     {
       pVirtualCtrls.push_back(
@@ -90,7 +73,6 @@ public:
     }
 
     activeIndex = 0;
-    unlock();
     // pActiveCtrl = pVirtualCtrls.at(0);
   }
 
@@ -155,12 +137,7 @@ public:
 
   void selectMode(uint8_t mode, bool reqUnlock = true)
   {
-    if (!lock())
-    {
-      Serial.println("MMC selmode semtake failed");
-      while (1);
-    }
-
+    cli();
     if (getPtr())
     {
       getPtr()->lockControl();
@@ -171,23 +148,17 @@ public:
     {
       getPtr()->reqUnlock();
     }
-
-    unlock();
+    sei();
   }
 
   void setLockVal(uint16_t jamVal, int8_t mode = -1)
   {
-  if (!lock())
-  {
-    Serial.println("MMC setval semtake failed");
-    while (1);
-  }
+    cli();
     if (getPtr())
     {
       getPtr(mode)->setLockVal(jamVal);
     }
-
-    unlock();
+    sei();
   }
 
   void setDefaults();

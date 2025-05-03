@@ -4,7 +4,6 @@
 #include <memory>
 #include <ADC_Object.h>
 #include <vector>
-#include <freertos/semphr.h>
 
 ////////////////////////////////////////////////
 // UNLOCKED:         control value is whatever the current reading is
@@ -23,10 +22,6 @@ static const double  DEFAULT_THRESHOLD(0.01);
 
 class ControlObject
 {
-private:
-  SemaphoreHandle_t mutex;
-  bool lock();
-  void unlock();
 
 protected:
   volatile LockState lockState;
@@ -47,7 +42,6 @@ public:
       lockCtrlVal(defaultControlVal)
   {
     pADC = std::make_shared<SmoothedADC>(std::shared_ptr<ADC_Object>(inADC), 100);
-    mutex = xSemaphoreCreateRecursiveMutex();
   }
 
   ControlObject(std::shared_ptr<ADC_Object>inADC,
@@ -58,7 +52,6 @@ public:
       lockCtrlVal(defaultControlVal)
   {
     pADC = std::make_shared<SmoothedADC>(inADC, 100);
-    mutex = xSemaphoreCreateRecursiveMutex();
   }
 
   uint16_t  getMin(void);

@@ -1,7 +1,5 @@
 #include <ControlObject.h>
 
-#define SEM_TIMEOUT ((TickType_t)10)
-
 
 ////////////////////////////////////////////////
 // Sets LockVal to current (measured) real value regardless of LockState
@@ -17,25 +15,12 @@ void ControlObject::overWrite()
   }
 }
 
-bool ControlObject::lock()
-{
-  return (pdTRUE == xSemaphoreTakeRecursive(mutex, SEM_TIMEOUT));
-}
-
-void ControlObject::unlock()
-{
-  xSemaphoreGiveRecursive(mutex);
-}
 
 LockState ControlObject::getLockState(void)
 {
-  if (!lock())
-  {
-    Serial.println("ctl getlockstate semtake failed");
-    while (1);
-  }
+  cli();
   LockState ret = lockState;
-  unlock();
+  sei();
   return ret;
 }
 
@@ -49,19 +34,14 @@ uint16_t ControlObject::getMax(void) { return pADC->getMax(); }
 // Lock the control at its current value if it isn't already locked
 void ControlObject::lockControl()
 {
-  if (!lock())
-  {
-    Serial.println("ctl lockControl semtake failed");
-    while (1);
-  }
-
+  cli();
   if (lockState != STATE_LOCKED)
   {
     lockState = STATE_LOCKED;
   }
 
   // Serial.printf("%p locked @ %u\n", this, lockCtrlVal);
-  unlock();
+  sei();
 }
 
 ////////////////////////////////////////////////
@@ -69,11 +49,7 @@ void ControlObject::lockControl()
 LockState ControlObject::reqUnlock()
 {
   LockState ret;
-  if (!lock())
-  {
-    Serial.println("ctl unlock semtake failed");
-    while (1);
-  }
+  cli();
   if (lockState == STATE_LOCKED)
   {
     lockState = STATE_UNLOCK_REQUESTED;
@@ -81,7 +57,7 @@ LockState ControlObject::reqUnlock()
     read();
   }
   ret = lockState;
-  unlock();
+  sei();
 
   return ret;
 }
@@ -90,11 +66,7 @@ LockState ControlObject::reqUnlock()
 // Ignore current reading, overwrite the lockControl value with jamVal
 void ControlObject::setLockVal(int16_t jamVal)
 {
-  if (!lock())
-  {
-    Serial.println("ctl setval semtake failed");
-    while (1);
-  }
+  cli();
   uint16_t tmpVal = lockCtrlVal;
   LockState tmpState = lockState;
   lockState = STATE_LOCKED;
@@ -103,7 +75,7 @@ void ControlObject::setLockVal(int16_t jamVal)
   {
     lockState = STATE_UNLOCK_REQUESTED;
   }
-  unlock();
+  sei();
 }
 
 ////////////////////////////////////////////////
@@ -125,15 +97,8 @@ uint16_t ControlObject::controlValToRawVal(uint16_t tgtVal)
 uint16_t ControlObject::read(void)
 {
   service();
-  if (!lock())
-  {
-    Serial.println("ctl read semtake failed");
-    while (1);
-  }
-
   if (lockState == STATE_LOCKED)
   {
-    unlock();
     return lockCtrlVal;
   }
 
@@ -170,19 +135,12 @@ uint16_t ControlObject::read(void)
     }
   }
 
-  unlock();
   return lockCtrlVal;
 }
 
 void ControlObject::service(void)
 {
-  if (!lock())
-  {
-    Serial.println("ctl svc semtake failed");
-    while (1);
-  }
   pADC->service();
   currentRawVal = pADC->read();
-  unlock();
 }
 
