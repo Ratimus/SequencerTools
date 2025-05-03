@@ -4,11 +4,9 @@
 // Nov. 2022
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
-#ifndef MagicButton_h
-#define MagicButton_h
+#pragma once
 
 #include <Arduino.h>
-#include <CD4067.h>
 #include <memory>
 #include <DirectIO.h>
 
@@ -108,50 +106,3 @@ public:
   void service();
   ButtonState read();
 };
-
-
-class MuxedButton : public MagicButton
-{
-  static inline std::shared_ptr<HW_Mux> _SHARED_MUX = NULL;
-  const uint16_t _BITMASK;
-  uint16_t _REGISTER;
-  uint8_t reg_num;
-
-public:
-
-  MuxedButton(uint16_t bit, uint8_t reg = 0):
-    MagicButton(-1, true, true),
-    _BITMASK((uint16_t)1 << bit),
-    reg_num(reg)
-  { ; }
-
-  static void setMux(HW_Mux *pMux)
-  {
-    _SHARED_MUX = std::shared_ptr<HW_Mux>(pMux);
-  }
-
-  // You don't need to call this if you have other stuff on this mux and you already updated it
-  static void updateReg()
-  {
-    _SHARED_MUX->service();
-  }
-
-  virtual bool readPin(void) override
-  {
-    cli();
-    if (reg_num)
-    {
-      _REGISTER = _SHARED_MUX->getReg1();
-    }
-    else
-    {
-      _REGISTER = _SHARED_MUX->getReg0();
-    }
-
-    bool ret = _REGISTER & _BITMASK;
-    sei();
-    return ret;
-  }
-};
-
-#endif
