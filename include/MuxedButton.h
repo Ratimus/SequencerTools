@@ -5,19 +5,23 @@
 class MuxedButton : public MagicButton
 {
   std::shared_ptr<MultiMux> pMux = NULL;
-  uint8_t pin_index;
   uint8_t mux_index;
 
 public:
+  uint8_t pin_index;
 
   MuxedButton():
     MagicButton(-1, true, true),
-    pMux(std::shared_ptr<MultiMux>(0))
+    pMux(std::shared_ptr<MultiMux>(0)),
+    pin_index(pin_index),
+    mux_index(mux_index)
   { ; }
 
   MuxedButton(MultiMux *mux, uint8_t pin_index, uint8_t mux_index = 0):
     MagicButton(-1, true, true),
-    pMux(std::shared_ptr<MultiMux>(pMux))
+    pMux(std::shared_ptr<MultiMux>(mux)),
+    pin_index(pin_index),
+    mux_index(mux_index)
   {
     pMux->add_digital_pin(pin_index, mux_index);
   }

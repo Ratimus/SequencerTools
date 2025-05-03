@@ -15,7 +15,9 @@ CD4067::CD4067(int8_t IO_PIN):
   IO_PIN(IO_PIN),
   pin_mask(0),
   pin_mode(0)
-{ ; }
+{
+  pinMode(IO_PIN, INPUT);
+}
 
 
 CD4067::CD4067(std::unique_ptr<ESP32AnalogRead> pESP_ADC):
@@ -35,7 +37,7 @@ void CD4067::enable_pin(uint8_t pin, bool is_analog)
     ANALOG_REG[pin] = 0;
     pin_mode |= (uint16_t)BITMASK_32[pin];
   }
-
+  Serial.printf("enable pin %d\n", pin);
   pin_mask |= (uint16_t)BITMASK_32[pin];
   pin_mode &= (uint16_t)~BITMASK_32[pin];
 }
@@ -77,6 +79,8 @@ inline uint16_t CD4067::get_val(uint8_t pin)
 {
   uint16_t ret = 0;
   uint16_t access_mask = (uint16_t)BITMASK_32[pin];
+  Serial.printf("%u:get_val\n", pin);
+
   if (!(pin_mask & access_mask))
   {
     return ret;

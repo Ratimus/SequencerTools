@@ -14,8 +14,8 @@ class CD4067
 {
   std::unique_ptr<ESP32AnalogRead> pESP_ADC;
   const int8_t IO_PIN;
-  uint16_t pin_mask;        // 0=active, 1=inactive
-  uint16_t pin_mode;        // 0=analog, 1=digital
+  uint16_t pin_mask;        // 0=inactive, 1=active
+  uint16_t pin_mode;        // 0=digital, 1=analog
 
 public:
 
@@ -46,6 +46,7 @@ public:
     for (uint8_t n = 0; n < 4; ++n)
     {
       ADDR[n] = ADDR_PINS[n];
+      pinMode(ADDR[n],  OUTPUT);
     }
   }
 
