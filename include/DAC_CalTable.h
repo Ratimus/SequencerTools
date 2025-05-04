@@ -1,5 +1,4 @@
-#ifndef DAC_CAL_TABLE_DOT_H
-#define DAC_CAL_TABLE_DOT_H
+#pragma once
 
 #include <Arduino.h>
 #include <Adafruit_MCP4728.h>
@@ -16,5 +15,3 @@ struct CalTable
 
   uint16_t valFromNote(uint8_t note) const;
 };
-
-#endif

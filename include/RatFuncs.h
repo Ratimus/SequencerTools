@@ -4,8 +4,7 @@
 // Oct. 2022
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
-#ifndef RatFuncs_h
-#define RatFuncs_h
+#pragma once
 
 #include <Arduino.h>
 #define RATDEBUG
@@ -58,6 +57,3 @@ const byte MASK6(MASK5 << 1);
 const byte MASK7(MASK6 << 1);
 
 const byte GATE_MASKS[8] = {MASK0, MASK1, MASK2, MASK3, MASK4, MASK5, MASK6, MASK7};
-
-
-#endif

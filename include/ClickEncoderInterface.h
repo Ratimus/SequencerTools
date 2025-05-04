@@ -4,10 +4,9 @@
 // Nov. 2022
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
-#ifndef ClickEncoderInterface_h
-#define ClickEncoderInterface_h
+#pragma once
 
-#include <Arduino.h>
+#include "Arduino.h"
 #include <memory>
 #include <ClickEncoder.h>
 #include <MagicButton.h>
@@ -68,5 +67,3 @@ public:
     pEncoder->service();
   }
 };
-
-#endif

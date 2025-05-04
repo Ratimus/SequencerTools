@@ -1,5 +1,4 @@
-#ifndef OUTPUT_CHANNEL_H
-#define OUTPUT_CHANNEL_H
+#pragma once
 
 #include <Arduino.h>
 #include <Adafruit_MCP4728.h>
@@ -30,6 +29,3 @@ public:
 };
 
 typedef std::shared_ptr<OutputChannel> channel_ptr;
-
-
-#endif

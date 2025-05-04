@@ -12,11 +12,11 @@
 //  Instead of: digitalWrite(pin, LOW)
 //  Use:        directWriteLow(pin)
 // ------------------------------------------------------------------------
-#ifndef DIRECT_IO_AITCH
-#define DIRECT_IO_AITCH
+#pragma once
 
-// Just need this for GPIO and uint32_t
-#include "Arduino.h"
+#include "soc/gpio_struct.h"
+#include "stdint.h"
+
 
 static inline __attribute__((always_inline))
 void directWriteLow(uint32_t pin)
@@ -58,6 +58,3 @@ uint32_t directRead(uint32_t pin)
   }
   return 0;
 }
-
-
-#endif

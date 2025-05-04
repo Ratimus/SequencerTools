@@ -1,5 +1,4 @@
-#ifndef MULTICHANNEL_DAC
-#define MULTICHANNEL_DAC
+#pragma once
 
 #include <Arduino.h>
 #include <RatFuncs.h>
@@ -25,8 +24,6 @@ public:
 
   uint16_t getChannelVal(uint8_t ch);
 };
-
-#endif
 
 
 // // Allows you to fine-tune the output of each individual DAC channel using all eight faders.

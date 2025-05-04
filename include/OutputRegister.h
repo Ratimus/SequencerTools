@@ -7,8 +7,9 @@
 // December 2023
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
-#ifndef OUTPUT_REGISTER_DOT_AITCH
-#define OUTPUT_REGISTER_DOT_AITCH
+#pragma once
+
+
 #include <Arduino.h>
 #include <Latchable.h>
 #include <bitHelpers.h>
@@ -150,5 +151,3 @@ protected:
 
   T REGISTER;
 };
-
-#endif

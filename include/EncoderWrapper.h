@@ -7,9 +7,9 @@
 //  ClickEncoderInterface and an instance of the ARDUINO_MENU_LIBRARY,
 //  allowing the encoder to generate RotaryEvents for use with that library
 // ------------------------------------------------------------------------
-#ifndef EncoderWrapper_H
-#define EncoderWrapper_H
+#pragma once
 
+#ifdef ARDUINOMENU
 
 #include <Arduino.h>
 #include "ClickEncoderInterface.h"
@@ -18,79 +18,78 @@
 
 namespace Menu
 {
-class EncoderWrapper : public menuIn
-{
-  SemaphoreHandle_t mutex;
-  std::list<uint8_t> events;
+  class EncoderWrapper : public menuIn
+  {
+    SemaphoreHandle_t mutex;
+    std::list<uint8_t> events;
 
-public:
+  public:
 
   size_t write(uint8_t v) override {return 0;}
-  ClickEncoderInterface &encoderInterface;
+    ClickEncoderInterface &encoderInterface;
 
   EncoderWrapper(ClickEncoderInterface &EncoderInterface):
     encoderInterface(EncoderInterface),
-    mutex(xSemaphoreCreateRecursiveMutex())
+                                                              mutex(xSemaphoreCreateRecursiveMutex())
   { ; }
 
-  int peek(void) override
-  {
-    int ret = encEvnts::None;
-    if (xSemaphoreTakeRecursive(mutex, 10) != pdTRUE)
+    int peek(void) override
     {
+      int ret = encEvnts::None;
+      if (xSemaphoreTakeRecursive(mutex, 10) != pdTRUE)
+      {
+        return ret;
+      }
+
+      if (!events.empty())
+      {
+        ret = events.back();
+      }
+      xSemaphoreGiveRecursive(mutex);
       return ret;
     }
 
-    if (!events.empty())
+    int available(void) override
     {
-      ret = events.back();
-    }
-    xSemaphoreGiveRecursive(mutex);
-    return ret;
-  }
-
-  int available(void) override
-  {
-    return peek() != encEvnts::None;
-  }
-
-  int read() override
-  {
-    if (!available())
-    {
-      return Menu::options->navCodes[noCmd].ch;
+      return peek() != encEvnts::None;
     }
 
-
-    if (xSemaphoreTakeRecursive(mutex, 10)!= pdTRUE)
+    int read() override
     {
-      return encEvnts::None;
-    }
+      if (!available())
+      {
+        return Menu::options->navCodes[noCmd].ch;
+      }
 
-    int ret = peek();
-    events.pop_back();
-    xSemaphoreGiveRecursive(mutex);
-    return ret;
-  }
+      if (xSemaphoreTakeRecursive(mutex, 10) != pdTRUE)
+      {
+        return encEvnts::None;
+      }
 
-  void flush() override
-  {
-    while (available())
-    {
-      xSemaphoreTakeRecursive(mutex, 10);
+      int ret = peek();
       events.pop_back();
       xSemaphoreGiveRecursive(mutex);
+      return ret;
     }
 
-    encoderInterface.flush();
-  }
-
-  void service()
-  {
-    xSemaphoreTakeRecursive(mutex, 10);
-    encoderInterface.service();
-    switch(encoderInterface.getEvent())
+    void flush() override
     {
+      while (available())
+      {
+        xSemaphoreTakeRecursive(mutex, 10);
+        events.pop_back();
+        xSemaphoreGiveRecursive(mutex);
+      }
+
+      encoderInterface.flush();
+    }
+
+    void service()
+    {
+      xSemaphoreTakeRecursive(mutex, 10);
+      encoderInterface.service();
+      switch (encoderInterface.getEvent())
+      {
       case encEvnts::Click:
       {
         events.push_front(Menu::options->navCodes[enterCmd].ch);
@@ -116,11 +115,11 @@ public:
       }
       default:
         break;
+      }
+      xSemaphoreGiveRecursive(mutex);
     }
-    xSemaphoreGiveRecursive(mutex);
-  }
-};
+  };
 
-}//namespace Menu
+} // namespace Menu
 
 #endif /* EncoderWrapper_h */

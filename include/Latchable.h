@@ -9,8 +9,7 @@
 // Nov. 2023
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
-#ifndef LASH_A_BULL_DOT_AITCH
-#define LASH_A_BULL_DOT_AITCH
+#pragma once
 
 template <typename T>
   class latchable
@@ -133,5 +132,3 @@ public:
   template <typename N>
   bool operator == (N) = delete;
 };
-
-#endif
