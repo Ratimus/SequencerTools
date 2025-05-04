@@ -1,3 +1,7 @@
+#pragma once
+
+#include <Arduino.h>
+
 #include <MagicButton.h>
 #include <CD4067.h>
 
@@ -37,8 +41,10 @@ public:
 
   virtual bool readPin(void) override
   {
-    if (!pMux)
+    // Check if pin is not valid
+    if (!pMux || pin_index == -1)
     {
+      Serial.println("readPin: lol nope");
       return false;
     }
 
