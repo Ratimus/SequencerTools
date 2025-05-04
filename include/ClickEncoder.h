@@ -19,38 +19,35 @@
 class ClickEncoder
 {
 public:
-
   // Constructor
   ClickEncoder(int8_t A,
                int8_t B,
                int8_t BTN,
                uint8_t stepsPerNotch = 4,
-               bool usePullResistor  = true);
+               bool usePullResistor = true);
 
   // Call every 1 ms in ISR
   virtual void service(void);
 
   // Get current state and free for further updates
-  int16_t      readPosition (void);
-  ButtonState  readButton   (void);
+  int16_t readPosition(void);
+  ButtonState readButton(void);
 
 protected:
+  const int8_t pinA;
+  const int8_t pinB;
+  uint8_t steps;
 
-  const    uint8_t  pinA;
-  const    uint8_t  pinB;
-  const    bool     activeLow;
+  const bool activeLow;
+  bool accelerationEnabled;
+  bool doubleClickable;
 
-  volatile int16_t  delta;
+  volatile long MSB;
+  volatile long LSB;
+  volatile long lastEncoded;
+  volatile int16_t delta;
+  volatile int16_t position;
   volatile uint16_t acceleration;
-  volatile int16_t  position;
-  volatile long     lastEncoded;
-  volatile long     MSB;
-  volatile long     LSB;
-
-  bool              accelerationEnabled;
-  uint8_t           steps;
-
-  bool              doubleClickable;
 
   virtual bool readA();
   virtual bool readB();
@@ -58,6 +55,5 @@ protected:
   std::unique_ptr<MagicButton> hwButton;
 
 public:
-
   void onPinChange();
 };

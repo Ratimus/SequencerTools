@@ -22,26 +22,22 @@ const uint8_t MAX_BUFFER_SIZE(128);
 class ADC_Object
 {
 protected:
-  SemaphoreHandle_t mutex;
-
   uint16_t adcMin;
   uint16_t adcMax;
 
-  static inline const TickType_t PATIENCE = 10;
-
 public:
-
   inline static const uint8_t INVALID_CHANNEL = 99;
 
-  ADC_Object():
-      ADC_Object(0, 4095)
-  { ; }
+  ADC_Object() : ADC_Object(0, 4095)
+  {
+    ;
+  }
 
-  ADC_Object(uint16_t min, uint16_t max):
-      adcMin(min),
-      adcMax(max),
-      mutex(xSemaphoreCreateRecursiveMutex())
-  { ; }
+  ADC_Object(uint16_t min, uint16_t max) : adcMin(min),
+                                           adcMax(max)
+  {
+    ;
+  }
 
   virtual void service(void) = 0;
   virtual uint16_t read(void) = 0;
@@ -53,7 +49,6 @@ public:
   uint16_t getMax(void) { return adcMax; }
 };
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////
 // ADC Channel corresponding to an MCP ADC
 //
@@ -62,16 +57,14 @@ public:
 class MCP_Channel : public ADC_Object
 {
 private:
-
   uint8_t channel;
   std::shared_ptr<MCP_ADC> pADC;
   volatile uint16_t rawVal;
 
 public:
-
   virtual void service(void) override
   {
-    if ( (pADC == nullptr) || (channel == INVALID_CHANNEL) )
+    if ((pADC == nullptr) || (channel == INVALID_CHANNEL))
     {
       rawVal = adcMin;
     }
@@ -81,28 +74,32 @@ public:
     }
   }
 
-  MCP_Channel():
-      channel(99),
-      pADC(nullptr)
-  { ; }
+  MCP_Channel() : channel(99),
+                  pADC(nullptr)
+  {
+    ;
+  }
 
   MCP_Channel(MCP_ADC *pADC,
-              uint8_t inChannel = INVALID_CHANNEL):
-      pADC(std::shared_ptr<MCP_ADC>(pADC)),
-      channel(inChannel)
-  { ; }
+              uint8_t inChannel = INVALID_CHANNEL) : channel(inChannel),
+                                                     pADC(std::shared_ptr<MCP_ADC>(pADC))
 
-  MCP_Channel(std::shared_ptr<MCP_ADC>pADC,
-              uint8_t inChannel = INVALID_CHANNEL):
-      pADC(pADC),
-      channel(inChannel)
-  { ; }
+  {
+    ;
+  }
+
+  MCP_Channel(std::shared_ptr<MCP_ADC> pADC,
+              uint8_t inChannel = INVALID_CHANNEL) : channel(inChannel), pADC(pADC)
+
+  {
+    ;
+  }
 
   void setADC(MCP_ADC *pADC) { this->pADC = std::shared_ptr<MCP_ADC>(pADC); }
-  void setChannel(uint8_t inChannel)    { channel = inChannel; }
+  void setChannel(uint8_t inChannel) { channel = inChannel; }
 
   std::shared_ptr<MCP_ADC> getADC(void) { return pADC; }
-  uint8_t getChannel(void)              { return channel; }
+  uint8_t getChannel(void) { return channel; }
 
   virtual uint16_t read(void) override
   {
@@ -112,8 +109,6 @@ public:
     return ret;
   }
 };
-
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // ADC Channel corresponding to an ADC-enabled input on the ESP32
@@ -128,14 +123,12 @@ private:
   volatile uint16_t rawVal;
 
 public:
-  ESP32_ADC_Channel():
-      ESP32_ADC_Channel(INVALID_CHANNEL)
+  ESP32_ADC_Channel() : ESP32_ADC_Channel(INVALID_CHANNEL)
   {
     ;
   }
 
-  ESP32_ADC_Channel(uint8_t inPin):
-      ADC_Object()
+  ESP32_ADC_Channel(uint8_t inPin) : ADC_Object()
   {
     ADC = ESP32AnalogRead();
     rawVal = 0;
@@ -174,55 +167,49 @@ public:
   }
 };
 
-
 class SmoothedADC : public ADC_Object
 {
 protected:
-  std::array<volatile uint16_t, MAX_BUFFER_SIZE> readings;
+  uint8_t buffSize;
   std::shared_ptr<ADC_Object> pADC;
 
-  uint8_t   buffSize;
-  volatile uint8_t   writeIndex;
-  volatile int64_t   runningSum;
-  volatile uint16_t  sampleCount;
+  volatile uint8_t writeIndex;
+  volatile int64_t runningSum;
+  volatile uint16_t sampleCount;
+  std::array<volatile uint16_t, MAX_BUFFER_SIZE> readings;
 
 public:
-  SmoothedADC(std::shared_ptr<ADC_Object>inADC,
-              uint8_t buffSize = MAX_BUFFER_SIZE):
-      buffSize(buffSize),
-      pADC(inADC)
+  SmoothedADC(std::shared_ptr<ADC_Object> inADC,
+              uint8_t buffSize = MAX_BUFFER_SIZE) : buffSize(buffSize),
+                                                    pADC(inADC)
   {
     reset();
   }
 
   SmoothedADC(ESP32_ADC_Channel *inADC,
-              uint8_t buffSize = MAX_BUFFER_SIZE):
-      buffSize(buffSize)
+              uint8_t buffSize = MAX_BUFFER_SIZE) : buffSize(buffSize)
   {
     pADC = std::shared_ptr<ESP32_ADC_Channel>(inADC);
     reset();
   }
 
-  SmoothedADC(std::shared_ptr<ESP32_ADC_Channel>inADC,
-              uint8_t buffSize = MAX_BUFFER_SIZE):
-      buffSize(buffSize),
-      pADC(inADC)
+  SmoothedADC(std::shared_ptr<ESP32_ADC_Channel> inADC,
+              uint8_t buffSize = MAX_BUFFER_SIZE) : buffSize(buffSize),
+                                                    pADC(inADC)
   {
     reset();
   }
 
   SmoothedADC(MCP_Channel *inADC,
-              uint8_t buffSize = MAX_BUFFER_SIZE):
-      buffSize(buffSize)
+              uint8_t buffSize = MAX_BUFFER_SIZE) : buffSize(buffSize)
   {
     pADC = std::shared_ptr<MCP_Channel>(inADC);
     reset();
   }
 
-  SmoothedADC(std::shared_ptr<MCP_Channel>inADC,
-              uint8_t buffSize = MAX_BUFFER_SIZE):
-      buffSize(buffSize),
-      pADC(inADC)
+  SmoothedADC(std::shared_ptr<MCP_Channel> inADC,
+              uint8_t buffSize = MAX_BUFFER_SIZE) : buffSize(buffSize),
+                                                    pADC(inADC)
   {
     reset();
   }
@@ -231,7 +218,7 @@ public:
   {
     cli();
     memset(&readings, 0, sizeof(uint16_t) * buffSize);
-    runningSum  = 0;
+    runningSum = 0;
     sampleCount = 0;
     writeIndex = 0;
     sei();
@@ -239,7 +226,7 @@ public:
 
   virtual void service(void) override
   {
-        pADC->service();
+    pADC->service();
     uint16_t newestReading = pADC->read();
 
     runningSum += newestReading;
@@ -275,7 +262,7 @@ public:
 
   void fillBuffer(void)
   {
-    while(sampleCount != buffSize)
+    while (sampleCount != buffSize)
     {
       service();
     }

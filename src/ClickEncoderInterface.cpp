@@ -8,13 +8,13 @@
 #include <memory>
 
 // Constructor
-ClickEncoderInterface::ClickEncoderInterface(ClickEncoder *Enc, int8_t sense):
-  pEncoder(Enc),
-  pos(0),
-  oldPos(0),
-  heldClicked(0)
-{ ; }
-
+ClickEncoderInterface::ClickEncoderInterface(ClickEncoder *Enc, int8_t sense) : pEncoder(Enc),
+                                                                                heldClicked(0),
+                                                                                pos(0),
+                                                                                oldPos(0)
+{
+  ;
+}
 
 ClickEncoderInterface::ClickEncoderInterface(
     uint8_t A,
@@ -22,24 +22,24 @@ ClickEncoderInterface::ClickEncoderInterface(
     uint8_t BTN,
     int8_t sense,
     uint8_t stepsPerNotch,
-    bool usePullResistors):
-  pEncoder(std::make_shared<ClickEncoder>(A, B, BTN, stepsPerNotch, usePullResistors)),
-  pos(0),
-  oldPos(0),
-  heldClicked(0)
-{ ; }
-
+    bool usePullResistors) : pEncoder(std::make_shared<ClickEncoder>(A, B, BTN, stepsPerNotch, usePullResistors)),
+                             heldClicked(0),
+                             pos(0),
+                             oldPos(0)
+{
+  ;
+}
 
 encEvnts ClickEncoderInterface::getEvent(void)
 {
   cli();
 
-  ButtonState prevState    = btnState;
-  oldPos                   = pos;
-  pos                      = pEncoder->readPosition();
-  btnState                 = pEncoder->readButton();
+  ButtonState prevState = btnState;
+  oldPos = pos;
+  pos = pEncoder->readPosition();
+  btnState = pEncoder->readButton();
   ButtonState currentState = btnState;
-  int deltaPos             = pos - oldPos;
+  int deltaPos = pos - oldPos;
   sei();
 
   // Right Click
@@ -106,7 +106,6 @@ encEvnts ClickEncoderInterface::getEvent(void)
   heldClicked = 0;
   return encEvnts::None;
 }
-
 
 void ClickEncoderInterface::flush()
 {

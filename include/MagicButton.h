@@ -10,7 +10,6 @@
 #include <memory>
 #include <DirectIO.h>
 
-
 // #define DEBUG_BUTTON_STATES
 
 typedef enum Button_e
@@ -39,31 +38,30 @@ typedef enum Button_e
 //  Released
 //
 
-
-const uint16_t debounceUP(0b0111111111111111);  // More leading zeros will increase sensitivity
-const int16_t  debounceDN(~debounceUP);
+const uint16_t debounceUP(0b0111111111111111); // More leading zeros will increase sensitivity
+const int16_t debounceDN(~debounceUP);
 
 // Button configuration (values for 1ms timer service calls)
 //
-const uint16_t DOUBLECLICKTIME(150);  // Count two clicks as doubleclick if both received within this time
+const uint16_t DOUBLECLICKTIME(150); // Count two clicks as doubleclick if both received within this time
 const uint16_t PRESSTIME(250);
-const uint16_t HOLDTIME(350);        // Report held button after time
+const uint16_t HOLDTIME(350); // Report held button after time
 
 class MagicButton
 {
 protected:
   inline static const TickType_t PATIENCE = 10;
 
-  int8_t   pin;         // HW pin
-  bool     pullup;      // Set TRUE to enable pullup resistor if active low
-  uint8_t  dbnceIntvl;  // How long to lockout bounce AFTER press/release
-  bool     doubleClickable;
+  int8_t pin;  // HW pin
+  bool pullup; // Enable pullup resistor if active low
+  bool doubleClickable;
+  uint8_t dbnceIntvl; // Debounce interval
 
   volatile ButtonState state[2];
-  volatile bool buttonDown;  // Raw data. We don't need to see it, we don't want to see it.
+  volatile bool buttonDown; // Raw data. We don't need to see it.
   volatile bool outputCleared;
   volatile long long debounceTS;
-  volatile uint16_t buff;        // Moving window to record multiple readings
+  volatile uint16_t buff; // Moving window to record multiple readings
 
   virtual bool readPin()
   {
@@ -86,16 +84,15 @@ public:
   // Constructor
   MagicButton(int8_t pin,
               bool pullup,
-              bool doubleClickable):
-    buff(0),
-    pin(pin),
-    debounceTS(0),
-    buttonDown(0),
-    dbnceIntvl(25),
-    pullup(pullup),
-    outputCleared(1),
-    doubleClickable(doubleClickable),
-    state{ButtonState::Open, ButtonState::Open}
+              bool doubleClickable) : pin(pin),
+                                      pullup(pullup),
+                                      doubleClickable(doubleClickable),
+                                      dbnceIntvl(25),
+                                      state{ButtonState::Open, ButtonState::Open},
+                                      buttonDown(0),
+                                      outputCleared(1),
+                                      debounceTS(0),
+                                      buff(0)
   {
     if (pin != -1)
     {

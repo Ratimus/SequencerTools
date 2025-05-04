@@ -31,12 +31,12 @@ class ClickEncoderInterface
 protected:
 
   std::shared_ptr<ClickEncoder> pEncoder;  // Associated hardware clickEncoder
+  bool heldClicked;
 
   volatile ButtonState          btnState;  // Variable to store the state of the button
-  volatile int oldPos;
   volatile int pos;
+  volatile int oldPos;
 
-  bool heldClicked;
 
 public:
 

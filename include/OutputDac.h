@@ -6,17 +6,15 @@
 #include "OutputChannel.h"
 #include <memory>
 
-
 class MultiChannelDac
 {
-  std::vector<channel_ptr> DAC;
+  std::shared_ptr<Adafruit_MCP4728> MCP4728;
   const uint8_t NUM_DAC_CHANNELS;
   bool ready;
-  std::shared_ptr<Adafruit_MCP4728> MCP4728;
+  std::vector<channel_ptr> DAC;
 
 public:
-
-  MultiChannelDac(uint8_t numCh, Adafruit_MCP4728 * pMCP = nullptr);
+  MultiChannelDac(uint8_t numCh, Adafruit_MCP4728 *pMCP = nullptr);
 
   void setChannelNote(uint8_t channel, uint8_t note);
 
@@ -24,7 +22,6 @@ public:
 
   uint16_t getChannelVal(uint8_t ch);
 };
-
 
 // // Allows you to fine-tune the output of each individual DAC channel using all eight faders.
 // // Save the values you get and use them to populate the calibration data in TMOC_HW.h

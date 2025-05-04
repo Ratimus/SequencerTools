@@ -13,9 +13,9 @@
 // ----------------------------------------------------------------------------
 // Acceleration configuration (for 1000Hz calls to ::service())
 //
-const uint16_t ENC_ACCEL_TOP (3072);  // max. acceleration: *12 (val >> 8)
-const uint8_t  ENC_ACCEL_INC (25);
-const uint8_t  ENC_ACCEL_DEC (2);
+const uint16_t ENC_ACCEL_TOP(3072); // max. acceleration: *12 (val >> 8)
+const uint8_t ENC_ACCEL_INC(25);
+const uint8_t ENC_ACCEL_DEC(2);
 
 // ----------------------------------------------------------------------------
 
@@ -23,24 +23,23 @@ ClickEncoder::ClickEncoder(int8_t A,
                            int8_t B,
                            int8_t BTN,
                            uint8_t stepsPerNotch,
-                           bool usePulllResistor) :
-   doubleClickable(true),
-   accelerationEnabled(false),
-   position(0),
-   delta(0),
-   acceleration(0),
-   steps(stepsPerNotch),
-   pinA(A),
-   pinB(B),
-   lastEncoded(0),
-   activeLow(usePulllResistor)
+                           bool usePulllResistor) : pinA(A),
+                                                    pinB(B),
+                                                    steps(stepsPerNotch),
+                                                    activeLow(usePulllResistor),
+                                                    accelerationEnabled(false),
+                                                    doubleClickable(true),
+                                                    lastEncoded(0),
+                                                    delta(0),
+                                                    position(0),
+                                                    acceleration(0)
 {
   if (pinA != -1)
   {
     hwButton = std::make_unique<MagicButton>(BTN, activeLow, doubleClickable);
     uint8_t configType = activeLow ? INPUT_PULLUP : INPUT;
-    pinMode(pinA,   configType);
-    pinMode(pinB,   configType);
+    pinMode(pinA, configType);
+    pinMode(pinB, configType);
 
     MSB = readA();
     LSB = readB();
@@ -51,7 +50,6 @@ ClickEncoder::ClickEncoder(int8_t A,
   }
 }
 
-
 // ----------------------------------------------------------------------------
 // call this every 1 millisecond via timer ISR
 //
@@ -59,8 +57,8 @@ void ClickEncoder::service(void)
 {
   cli();
   long encoded = 0;
-  long tmpMSB  = (long)readA();
-  long tmpLSB  = (long)readB();
+  long tmpMSB = (long)readA();
+  long tmpLSB = (long)readB();
 
   // TODO: we're mimicking the hardware interrupts here, so we need to handle the first three
   // lines for one bit then run the equivalent of the ISR once *BEFORE* we do the same thing
@@ -68,30 +66,29 @@ void ClickEncoder::service(void)
   // call it without disturbing the other logic, since the sequence here is very important
   if (MSB != tmpMSB)
   {
-    MSB      = tmpMSB;
-    encoded  = (MSB << 1) | LSB;
-    long sum = (lastEncoded << 2) | encoded;  // Add it to the previous encoded value
-    switch(sum)
+    MSB = tmpMSB;
+    encoded = (MSB << 1) | LSB;
+    long sum = (lastEncoded << 2) | encoded; // Add it to the previous encoded value
+    switch (sum)
     {
-      case 0b1101:
-      case 0b0100:
-      case 0b0010:
-      case 0b1011:
-        ++delta;
-        break;
+    case 0b1101:
+    case 0b0100:
+    case 0b0010:
+    case 0b1011:
+      ++delta;
+      break;
 
-      case 0b1110:
-      case 0b0111:
-      case 0b0001:
-      case 0b1000:
-        --delta;
-        break;
+    case 0b1110:
+    case 0b0111:
+    case 0b0001:
+    case 0b1000:
+      --delta;
+      break;
 
-      default:
-        break;
+    default:
+      break;
     }
 
-    int16_t oldPos = position;
     while (delta >= (int16_t)steps)
     {
       delta -= (int16_t)steps;
@@ -109,30 +106,29 @@ void ClickEncoder::service(void)
 
   if (LSB != tmpLSB)
   {
-    LSB      = tmpLSB;
-    encoded  = (MSB << 1) | LSB;
-    long sum = (lastEncoded << 2) | encoded;  // Add it to the previous encoded value
-    switch(sum)
+    LSB = tmpLSB;
+    encoded = (MSB << 1) | LSB;
+    long sum = (lastEncoded << 2) | encoded; // Add it to the previous encoded value
+    switch (sum)
     {
-      case 0b1101:
-      case 0b0100:
-      case 0b0010:
-      case 0b1011:
-        ++delta;
-        break;
+    case 0b1101:
+    case 0b0100:
+    case 0b0010:
+    case 0b1011:
+      ++delta;
+      break;
 
-      case 0b1110:
-      case 0b0111:
-      case 0b0001:
-      case 0b1000:
-        --delta;
-        break;
+    case 0b1110:
+    case 0b0111:
+    case 0b0001:
+    case 0b1000:
+      --delta;
+      break;
 
-      default:
-        break;
+    default:
+      break;
     }
 
-    int16_t oldPos = position;
     while (delta >= (int16_t)steps)
     {
       delta -= (int16_t)steps;
@@ -152,18 +148,15 @@ void ClickEncoder::service(void)
   hwButton->service();
 }
 
-
 bool ClickEncoder::readA()
 {
   return (directRead(pinA) ^ activeLow);
 }
 
-
 bool ClickEncoder::readB()
 {
   return (directRead(pinB) ^ activeLow);
 }
-
 
 void ClickEncoder::onPinChange()
 {
@@ -171,15 +164,15 @@ void ClickEncoder::onPinChange()
   MSB = readB();
   LSB = readA();
 
-  int encoded = (MSB << 1) | LSB;           // Convert pin B to single number
-  int sum  = (lastEncoded << 2) | encoded;  // Add it to the previous encoded value
+  int encoded = (MSB << 1) | LSB;         // Convert pin B to single number
+  int sum = (lastEncoded << 2) | encoded; // Add it to the previous encoded value
 
-  if(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011)
+  if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011)
   {
     ++delta;
   }
 
-  if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000)
+  if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000)
   {
     --delta;
   }
@@ -211,7 +204,6 @@ int16_t ClickEncoder::readPosition(void)
   return ret;
 }
 
-
 // ----------------------------------------------------------------------------
 // Resets buttonState and returns value prior to reset; encBtnState output state
 // persists until this function is called && encBtnState has been released
@@ -221,4 +213,3 @@ ButtonState ClickEncoder::readButton(void)
   ButtonState ret = hwButton->read();
   return ret;
 }
-

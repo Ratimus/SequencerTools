@@ -14,12 +14,12 @@ void MagicButton::service()
   long long timeStamp = 0;
 
   // Shift buffer by one and tack the current value on the end
-  buff = (buff << 1) | readPin();
+  buff = (buff << 1) | (uint16_t)readPin();
 
   timeStamp = millis();
 
-  if (   (timeStamp >= (long long)debounceTS)
-      && ((timeStamp - (long long)debounceTS) >= (long long)dbnceIntvl) )
+  if ((timeStamp >= (long long)debounceTS) &&
+      ((timeStamp - (long long)debounceTS) >= (long long)dbnceIntvl))
   {
     if (!buttonDown)
     {
@@ -41,122 +41,122 @@ void MagicButton::service()
 
   long timeSinceChange = timeStamp - debounceTS;
 
-  switch(state[0])
+  switch (state[0])
   {
-    // Register initial button state change
-    case ButtonState::Open:          // Not pressed, and output has been read
+  // Register initial button state change
+  case ButtonState::Open: // Not pressed, and output has been read
+  {
+    state[1] = ButtonState::Open; // Reset output state
+    if (buttonDown)
     {
-      state[1] = ButtonState::Open;  // Reset output state
-      if (buttonDown)
-      {
-        state[0] = ButtonState::Closed;
-      }
-      break;
+      state[0] = ButtonState::Closed;
     }
+    break;
+  }
 
-    // Register single click if button went from closed to open and we
-    // didn't get a second click within DOUBLECLICKTIME
-    // Register a long press if button stays closed for PRESSTIME
-    case ButtonState::Closed:
+  // Register single click if button went from closed to open and we
+  // didn't get a second click within DOUBLECLICKTIME
+  // Register a long press if button stays closed for PRESSTIME
+  case ButtonState::Closed:
+  {
+    if (!buttonDown)
     {
-      if (!buttonDown)
+      if (!doubleClickable)
       {
-        if (!doubleClickable)
-        {
-          state[1] = ButtonState::Clicked;
-          state[0] = ButtonState::Released;
-          outputCleared = false;
-        }
-        else
-        {
-          state[0] = ButtonState::Clicked;
-        }
-      }
-      else if (timeSinceChange >= PRESSTIME)
-      {
-        state[0] = ButtonState::Pressed;
-      }
-      break;
-    }
-
-    case ButtonState::Clicked:
-    {
-      if (buttonDown)
-      {
-        if (timeSinceChange < DOUBLECLICKTIME)
-        {
-          state[0] = ButtonState::DoubleClicked;
-        }
-      }
-      else if (timeSinceChange >= DOUBLECLICKTIME)
-      {
-        state[1] = ButtonState::Clicked;
-        state[0] = ButtonState::Released;
+        state[1]      = ButtonState::Clicked;
+        state[0]      = ButtonState::Released;
         outputCleared = false;
       }
-      break;
-    }
-
-    case ButtonState::DoubleClicked:
-    {
-      if (timeSinceChange >= DOUBLECLICKTIME)
+      else
       {
-        if (buttonDown)
-        {
-          state[1] = ButtonState::ClickedAndHeld;
-          state[0] = ButtonState::ClickedAndHeld;
-          outputCleared = false;
-        }
-        else if (!buttonDown)
-        {
-          state[1] = ButtonState::DoubleClicked;
-          state[0] = ButtonState::Released;
-          outputCleared = false;
-        }
+        state[0] = ButtonState::Clicked;
       }
-      break;
     }
-
-    case ButtonState::Pressed:
+    else if (timeSinceChange >= PRESSTIME)
     {
-      if (!buttonDown)
+      state[0] = ButtonState::Pressed;
+    }
+    break;
+  }
+
+  case ButtonState::Clicked:
+  {
+    if (buttonDown)
+    {
+      if (timeSinceChange < DOUBLECLICKTIME)
       {
-          state[1] = ButtonState::Pressed;
-          state[0] = ButtonState::Released;
-          outputCleared = false;
+        state[0] = ButtonState::DoubleClicked;
       }
-      else if (timeSinceChange >= HOLDTIME - PRESSTIME)
+    }
+    else if (timeSinceChange >= DOUBLECLICKTIME)
+    {
+      state[1]      = ButtonState::Clicked;
+      state[0]      = ButtonState::Released;
+      outputCleared = false;
+    }
+    break;
+  }
+
+  case ButtonState::DoubleClicked:
+  {
+    if (timeSinceChange >= DOUBLECLICKTIME)
+    {
+      if (buttonDown)
       {
-        state[1] = ButtonState::Held;
-        state[0] = ButtonState::Held;
+        state[1]      = ButtonState::ClickedAndHeld;
+        state[0]      = ButtonState::ClickedAndHeld;
         outputCleared = false;
       }
-      break;
-    }
-
-    case ButtonState::ClickedAndHeld:
-    case ButtonState::Held:
-    {
-      if (!buttonDown)
+      else if (!buttonDown)
       {
-        state[0] = ButtonState::Released;
+        state[1]      = ButtonState::DoubleClicked;
+        state[0]      = ButtonState::Released;
+        outputCleared = false;
       }
-      break;
     }
+    break;
+  }
 
-    case ButtonState::Released:
+  case ButtonState::Pressed:
+  {
+    if (!buttonDown)
     {
-      if (outputCleared)
-      {
-        state[0] = ButtonState::Open;
-        state[1] = ButtonState::Open;
-      }
-      // State persists until external read and clear
-      break;
+      state[1]      = ButtonState::Pressed;
+      state[0]      = ButtonState::Released;
+      outputCleared = false;
     }
+    else if (timeSinceChange >= HOLDTIME - PRESSTIME)
+    {
+      state[1]      = ButtonState::Held;
+      state[0]      = ButtonState::Held;
+      outputCleared = false;
+    }
+    break;
+  }
 
-    default:
-      break;
+  case ButtonState::ClickedAndHeld:
+  case ButtonState::Held:
+  {
+    if (!buttonDown)
+    {
+      state[0] = ButtonState::Released;
+    }
+    break;
+  }
+
+  case ButtonState::Released:
+  {
+    if (outputCleared)
+    {
+      state[0] = ButtonState::Open;
+      state[1] = ButtonState::Open;
+    }
+    // State persists until external read and clear
+    break;
+  }
+
+  default:
+    break;
   }
 
 #ifdef DEBUG_BUTTON_STATES
@@ -165,43 +165,43 @@ void MagicButton::service()
   // SERIAL DEBUGGING
   if (state[1] != tmpState[1])
   {
-    switch(state[1])
+    switch (state[1])
     {
-      case ButtonState::ClickedAndHeld:
-        Serial.println("CLICK CLIIIIIIIIIIII...");
-        break;
+    case ButtonState::ClickedAndHeld:
+      Serial.println("CLICK CLIIIIIIIIIIII...");
+      break;
 
-      case ButtonState::Clicked:
-        Serial.println("CLICK");
-        break;
+    case ButtonState::Clicked:
+      Serial.println("CLICK");
+      break;
 
-      case ButtonState::Closed:
-        Serial.println("CLOSED");
-        break;
+    case ButtonState::Closed:
+      Serial.println("CLOSED");
+      break;
 
-      case ButtonState::DoubleClicked:
-        Serial.println("CLICK CLICK");
-        break;
+    case ButtonState::DoubleClicked:
+      Serial.println("CLICK CLICK");
+      break;
 
-      case ButtonState::Held:
-        Serial.println("HELD");
-        break;
+    case ButtonState::Held:
+      Serial.println("HELD");
+      break;
 
-      case ButtonState::Open:
-        Serial.println("OPEN");
-        break;
+    case ButtonState::Open:
+      Serial.println("OPEN");
+      break;
 
-      case ButtonState::Pressed:
-        Serial.println("PRESSED");
-        break;
+    case ButtonState::Pressed:
+      Serial.println("PRESSED");
+      break;
 
-      case ButtonState::Released:
-        Serial.println("RELEASED");
-        break;
+    case ButtonState::Released:
+      Serial.println("RELEASED");
+      break;
 
-      default:
-        break;
-     }
+    default:
+      break;
+    }
   }
   tmpState[0] = state[0];
   tmpState[1] = state[1];
@@ -224,4 +224,3 @@ ButtonState MagicButton::read(void)
   sei();
   return retVal;
 }
-
