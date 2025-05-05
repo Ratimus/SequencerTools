@@ -11,39 +11,69 @@ class MuxedEncoder : public ClickEncoder
 protected:
 
   std::shared_ptr<MultiMux> pMux;
-  uint8_t pinA;
-  uint8_t pinB;
-  uint8_t mux_index;
+  int8_t pinA;
+  int8_t pinB;
+  int8_t mux_index;
 
   virtual bool readB() override
   {
+    if (!pMux)
+    {
+      return false;
+    }
     return (bool)pMux->get_val(pinB, mux_index);
   }
 
   virtual bool readA() override
   {
+    if (!pMux)
+    {
+      return false;
+    }
     return (bool)pMux->get_val(pinA, mux_index);
   }
 
 public:
 
+  MuxedEncoder():
+    ClickEncoder(-1, -1, -1, 4, true)
+  {
+    hwButton = std::unique_ptr<MuxedButton>(nullptr);
+    pinA = -1;
+    pinB = -1;
+    mux_index = -1;
+  }
+
   MuxedEncoder(MultiMux *mux,
                const uint8_t * const pinNums,
-               uint8_t stepsPerNotch,
-               uint8_t mux_index = 0):
+               int8_t stepsPerNotch,
+               int8_t mux_index = 0):
     ClickEncoder(-1, -1, -1, stepsPerNotch, true),
-    pinA(pinNums[0]),
-    pinB(pinNums[1]),
+    pinA((int8_t)pinNums[0]),
+    pinB((int8_t)pinNums[1]),
     mux_index(mux_index)
   {
       hwButton = std::make_unique<MuxedButton>(mux, pinNums[2], mux_index);
-      init();
+      init_vals();
   }
 
-  void init()
+  void init_vals()
   {
+    assert (hwButton);
     MSB = (long)readA();
     LSB = (long)readB();
     hwButton->service();
+  }
+
+  void init_hw(MultiMux *mux,
+               const uint8_t * const pinNums,
+               int8_t stepsPerNotch,
+               int8_t mux_index = 0)
+  {
+    pinA = ((int8_t)pinNums[0]);
+    pinB = ((int8_t)pinNums[1]);
+    this->mux_index = mux_index;
+    hwButton = std::make_unique<MuxedButton>(mux, pinNums[2], mux_index);
+    init_vals();
   }
 };

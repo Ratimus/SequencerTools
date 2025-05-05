@@ -24,11 +24,23 @@ LockState ControlObject::getLockState(void)
   return ret;
 }
 
-void ControlObject::setMin(uint16_t min) { pADC->setMin(min); }
-void ControlObject::setMax(uint16_t max) { pADC->setMax(max); }
+void ControlObject::setMin(uint16_t min)
+{
+  pADC->setMin(min);
+}
+void ControlObject::setMax(uint16_t max)
+{
+  pADC->setMax(max);
+}
 
-uint16_t ControlObject::getMin(void) { return pADC->getMin(); }
-uint16_t ControlObject::getMax(void) { return pADC->getMax(); }
+uint16_t ControlObject::getMin(void)
+{
+  return pADC->getMin();
+}
+uint16_t ControlObject::getMax(void)
+{
+  return pADC->getMax();
+}
 
 ////////////////////////////////////////////////
 // Lock the control at its current value if it isn't already locked
@@ -67,10 +79,9 @@ LockState ControlObject::reqUnlock()
 void ControlObject::setLockVal(int16_t jamVal)
 {
   cli();
-  uint16_t tmpVal = lockCtrlVal;
   LockState tmpState = lockState;
-  lockState = STATE_LOCKED;
-  lockCtrlVal = jamVal;
+  lockState          = STATE_LOCKED;
+  lockCtrlVal        = jamVal;
   if (tmpState != STATE_LOCKED)
   {
     lockState = STATE_UNLOCK_REQUESTED;
@@ -82,14 +93,16 @@ void ControlObject::setLockVal(int16_t jamVal)
 // Get the control value corresponding to a given ADC value [val]
 uint16_t ControlObject::rawValToControlVal(uint16_t rawVal)
 {
-  return (uint16_t)map(rawVal, pADC->getMin(), pADC->getMax() + 1, 0, numCtrlVals);
+  return (uint16_t)map(rawVal, pADC->getMin(), pADC->getMax() + 1, 0,
+                       numCtrlVals);
 }
 
 ////////////////////////////////////////////////
 // Figure out what ADC reading you'd need to match the given control value [tgtVal]
 uint16_t ControlObject::controlValToRawVal(uint16_t tgtVal)
 {
-  return (uint16_t)map(tgtVal, 0, numCtrlVals, pADC->getMin(), pADC->getMax() + 1);
+  return (uint16_t)map(tgtVal, 0, numCtrlVals, pADC->getMin(),
+                       pADC->getMax() + 1);
 }
 
 ////////////////////////////////////////////////
@@ -119,7 +132,8 @@ uint16_t ControlObject::read(void)
     {
       uint16_t tgtRawValue = controlValToRawVal(currentControlVal);
       // Make sure you're part way into the higher value before switching
-      if ((((float)currentRawVal - (float)tgtRawValue) / (float)tgtRawValue) > DEFAULT_THRESHOLD)
+      if ((((float)currentRawVal - (float)tgtRawValue) / (float)tgtRawValue) >
+          DEFAULT_THRESHOLD)
       {
         lockCtrlVal = currentControlVal;
       }
@@ -128,7 +142,8 @@ uint16_t ControlObject::read(void)
     {
       uint16_t tgtRawValue = controlValToRawVal(lockCtrlVal);
       // Make sure you're part way into the lower value before switching
-      if ((((float)tgtRawValue - (float)currentRawVal) / (float)tgtRawValue) > DEFAULT_THRESHOLD)
+      if ((((float)tgtRawValue - (float)currentRawVal) / (float)tgtRawValue) >
+          DEFAULT_THRESHOLD)
       {
         lockCtrlVal = currentControlVal;
       }
@@ -143,4 +158,3 @@ void ControlObject::service(void)
   pADC->service();
   currentRawVal = pADC->read();
 }
-
