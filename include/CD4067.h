@@ -1,6 +1,5 @@
 #pragma once
 #include "ESP32AnalogRead.h"
-#include <Arduino.h>
 #include <DirectIO.h>
 #include <stdint.h>
 
@@ -9,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <vector>
+
 
 class CD4067
 {
@@ -29,6 +29,7 @@ public:
   void            read_pin(uint8_t pin);
   inline uint16_t get_val(uint8_t pin);
 };
+
 
 class MultiMux
 {
@@ -61,6 +62,7 @@ public:
   {
     pinMode(io_pin, INPUT);
     auto pmux = std::make_unique<ESP32AnalogRead>(io_pin);
+    pmux->attach(io_pin);
     vMux.emplace_back(std::move(pmux));
     return vMux.size() - 1;
   }

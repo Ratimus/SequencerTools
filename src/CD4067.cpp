@@ -17,11 +17,13 @@ CD4067::CD4067(int8_t IO_PIN)
   pinMode(IO_PIN, INPUT);
 }
 
-CD4067::CD4067(std::unique_ptr<ESP32AnalogRead> pESP_ADC)
-    : pESP_ADC(std::move(pESP_ADC)), IO_PIN(-1), pin_mask(0), pin_mode(0)
-{
-  ;
-}
+CD4067::CD4067(std::unique_ptr<ESP32AnalogRead> pESP_ADC):
+  pESP_ADC(std::move(pESP_ADC)),
+  IO_PIN(-1),
+  pin_mask(0),
+  pin_mode(0)
+{ ; }
+
 
 // NOTE: if a pin was previously enabled as analog, this will make it digital
 void CD4067::enable_pin(uint8_t pin, bool is_analog)
@@ -75,11 +77,11 @@ void CD4067::read_pin(uint8_t pin)
 
   if (directRead(IO_PIN))
   {
-    MUXREG &= (uint16_t)~BITMASK_32[pin];
+    MUXREG |= (uint16_t)BITMASK_32[pin];
     return;
   }
 
-  MUXREG |= (uint16_t)BITMASK_32[pin];
+  MUXREG &= (uint16_t)~BITMASK_32[pin];
 }
 
 inline uint16_t CD4067::get_val(uint8_t pin)
@@ -137,7 +139,6 @@ void MultiMux::service()
   for (auto n : GRAY_CODE)
   {
     muxEnable(n, 10);
-    vTaskDelay(1);
     for (auto &mux : vMux)
     {
       mux.read_pin(n);

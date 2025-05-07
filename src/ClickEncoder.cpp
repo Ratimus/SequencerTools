@@ -23,16 +23,17 @@ ClickEncoder::ClickEncoder(int8_t A,
                            int8_t B,
                            int8_t BTN,
                            uint8_t stepsPerNotch,
-                           bool usePulllResistor) : pinA(A),
-                                                    pinB(B),
-                                                    steps(stepsPerNotch),
-                                                    activeLow(usePulllResistor),
-                                                    accelerationEnabled(false),
-                                                    doubleClickable(true),
-                                                    lastEncoded(0),
-                                                    delta(0),
-                                                    position(0),
-                                                    acceleration(0)
+                           bool usePulllResistor):
+  pinA(A),
+  pinB(B),
+  steps(stepsPerNotch),
+  activeLow(usePulllResistor),
+  accelerationEnabled(false),
+  doubleClickable(true),
+  lastEncoded(0),
+  delta(0),
+  position(0),
+  acceleration(0)
 {
   if (pinA != -1)
   {
@@ -55,7 +56,6 @@ ClickEncoder::ClickEncoder(int8_t A,
 //
 void ClickEncoder::service(void)
 {
-  cli();
   long encoded = 0;
   long tmpMSB = (long)readA();
   long tmpLSB = (long)readB();
@@ -144,7 +144,6 @@ void ClickEncoder::service(void)
     lastEncoded = encoded;
   }
 
-  sei();
   hwButton->service();
 }
 
@@ -160,7 +159,6 @@ bool ClickEncoder::readB()
 
 void ClickEncoder::onPinChange()
 {
-  cli();
   MSB = readB();
   LSB = readA();
 
@@ -190,7 +188,6 @@ void ClickEncoder::onPinChange()
   }
 
   lastEncoded = encoded;
-  sei();
 }
 
 // ----------------------------------------------------------------------------
@@ -210,6 +207,5 @@ int16_t ClickEncoder::readPosition(void)
 ButtonState ClickEncoder::readButton(void)
 {
   // read() takes care of interrupts for us, so no cli();
-  ButtonState ret = hwButton->read();
-  return ret;
+  return hwButton->read();
 }
