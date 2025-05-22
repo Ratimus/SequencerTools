@@ -42,9 +42,9 @@ protected:
   bool accelerationEnabled;
   bool doubleClickable;
 
-  volatile long MSB;
-  volatile long LSB;
-  volatile long lastEncoded;
+  volatile uint32_t MSB;
+  volatile uint32_t LSB;
+  volatile uint32_t lastEncoded;
   volatile int16_t delta;
   volatile int16_t position;
   volatile uint16_t acceleration;

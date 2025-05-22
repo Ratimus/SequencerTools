@@ -45,22 +45,21 @@ const int16_t debounceDN(~debounceUP);
 //
 const uint16_t DOUBLECLICKTIME(150); // Count two clicks as doubleclick if both received within this time
 const uint16_t PRESSTIME(250);
-const uint16_t HOLDTIME(350); // Report held button after time
+const uint16_t HOLDTIME(300); // Report held button after time
 
 class MagicButton
 {
 protected:
-  inline static const TickType_t PATIENCE = 10;
 
-  int8_t pin;  // HW pin
-  bool pullup; // Enable pullup resistor if active low
-  bool doubleClickable;
-  uint8_t dbnceIntvl; // Debounce interval
+  int8_t    pin;  // HW pin
+  bool      pullup; // Enable pullup resistor if active low
+  bool      doubleClickable;
+  uint64_t  dbnceIntvl; // Debounce interval
 
   volatile ButtonState state[2];
   volatile bool buttonDown; // Raw data. We don't need to see it.
   volatile bool outputCleared;
-  volatile long long debounceTS;
+  volatile uint64_t debounceTS;
   volatile uint16_t buff; // Moving window to record multiple readings
 
   virtual bool readPin()

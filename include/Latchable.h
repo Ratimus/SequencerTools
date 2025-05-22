@@ -31,7 +31,7 @@ public:
   T& in;            // DATA input/SET value
 
   // CTOR
-  latchable(T data):
+  latchable(T data = 0):
     ParamR(data),
     ParamQ(data),
     ParamS(ParamQ),
