@@ -50,6 +50,6 @@ public:
       return false;
     }
 
-    return (bool)pMux->get_val(pin_index, mux_index);
+    return !pMux->get_val(pin_index, mux_index);
   }
 };
