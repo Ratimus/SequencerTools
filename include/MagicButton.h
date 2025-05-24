@@ -8,7 +8,7 @@
 
 #include <Arduino.h>
 #include <memory>
-#include <DirectIO.h>
+#include "DirectIO.h"
 
 // #define DEBUG_BUTTON_STATES
 

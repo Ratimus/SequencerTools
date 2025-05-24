@@ -11,7 +11,7 @@
 
 
 #include <Arduino.h>
-#include <Latchable.h>
+#include "Latchable.h"
 #include <bitHelpers.h>
 #include <FastShiftOut.h>
 

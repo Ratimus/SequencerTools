@@ -1,6 +1,6 @@
 #pragma once
 #include "ESP32AnalogRead.h"
-#include <DirectIO.h>
+#include "DirectIO.h"
 #include <stdint.h>
 
 // If you don't like STL, rewrite classes as templates that take the number of

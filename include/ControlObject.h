@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 #include <memory>
-#include <ADC_Object.h>
+#include "ADC_Object.h"
 #include <vector>
 
 ////////////////////////////////////////////////

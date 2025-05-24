@@ -5,7 +5,7 @@
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
 #include "MagicButton.h"
-#include <DirectIO.h>
+#include "DirectIO.h"
 
 // Read, debounce, and set output state. Once set, final output state will
 // persist until reported and reset by separate call to read()

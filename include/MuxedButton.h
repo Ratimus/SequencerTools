@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 
-#include <MagicButton.h>
-#include <CD4067.h>
+#include "MagicButton.h"
+#include "CD4067.h"
 
 class MuxedButton : public MagicButton
 {

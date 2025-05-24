@@ -1,9 +1,9 @@
 #pragma once
 
 #include <Arduino.h>
-#include <ClickEncoder.h>
-#include <MuxedButton.h>
-#include <CD4067.h>
+#include "ClickEncoder.h"
+#include "MuxedButton.h"
+#include "CD4067.h"
 
 
 class MuxedEncoder : public ClickEncoder

@@ -8,7 +8,7 @@
 // ----------------------------------------------------------------------------
 
 #include "ClickEncoder.h"
-#include <DirectIO.h>
+#include "DirectIO.h"
 
 // ----------------------------------------------------------------------------
 // Acceleration configuration (for 1000Hz calls to ::service())

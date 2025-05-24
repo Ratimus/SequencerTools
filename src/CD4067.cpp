@@ -1,5 +1,5 @@
 #include "CD4067.h"
-#include <DirectIO.h>
+#include "DirectIO.h"
 
 static const uint8_t  GRAY_CODE[16] = {0,  1,  3,  2,  6,  7,  5, 4,
                                        12, 13, 15, 14, 10, 11, 9, 8};

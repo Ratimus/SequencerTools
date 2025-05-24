@@ -10,9 +10,9 @@
 #pragma once
 
 #include <Arduino.h>
-#include <MagicButton.h>
+#include "MagicButton.h"
 #include <memory>
-#include <RatFuncs.h>
+#include "RatFuncs.h"
 
 // ----------------------------------------------------------------------------
 

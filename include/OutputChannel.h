@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_MCP4728.h>
-#include <Latchable.h>
+#include "Latchable.h"
 #include <memory>
 #include "DAC_CalTable.h"
 

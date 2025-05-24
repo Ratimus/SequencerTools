@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <RatFuncs.h>
+#include "RatFuncs.h"
 #include <vector>
 #include "OutputChannel.h"
 #include <memory>

@@ -13,7 +13,7 @@
 
 #include <Arduino.h>
 #include "ClickEncoderInterface.h"
-#include <menuDefs.h>
+#include "menuDefs.h"
 #include <freertos/semphr.h>
 
 namespace Menu
