@@ -42,7 +42,7 @@ public:
     pMux->add_digital_pin(pin_index, mux_index);
   }
 
-  virtual bool readPin(void) override
+  virtual bool IRAM_ATTR readPin(void) override
   {
     // Check if pin is not valid
     if (!pMux || (pin_index == -1))

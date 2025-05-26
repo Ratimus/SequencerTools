@@ -14,6 +14,12 @@
 // ------------------------------------------------------------------------
 #pragma once
 
+#ifndef DIRECT_IO
+#define DIRECT_IO 1
+#endif
+
+#include <Arduino.h>
+
 #include "soc/gpio_struct.h"
 #include "stdint.h"
 
@@ -30,6 +36,7 @@ void directWriteLow(uint32_t pin)
     GPIO.out1_w1tc.val  = ((uint32_t)1 << (pin - 32));
   }
 }
+
 
 static inline __attribute__((always_inline))
 void directWriteHigh(uint32_t pin)
@@ -58,3 +65,7 @@ uint32_t directRead(uint32_t pin)
   }
   return 0;
 }
+
+void IRAM_ATTR directWriteLow_IRAM(uint32_t pin);
+void IRAM_ATTR directWriteHigh_IRAM(uint32_t pin);
+uint32_t IRAM_ATTR directRead_IRAM(uint32_t pin);

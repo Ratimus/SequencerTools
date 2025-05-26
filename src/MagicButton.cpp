@@ -9,7 +9,7 @@
 
 // Read, debounce, and set output state. Once set, final output state will
 // persist until reported and reset by separate call to read()
-void MagicButton::service()
+void IRAM_ATTR MagicButton::service()
 {
   long long timeStamp = 0;
 

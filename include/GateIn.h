@@ -103,7 +103,7 @@ protected:
 
     for (uint8_t gate(0); gate < NUM_GATES; ++gate)
     {
-#ifdef DIRECT_IO_AITCH
+#ifdef DIRECT_IO
       // Li'l bit faster
       bool val(directRead(INPUT_MAP[gate]) ^ _pullup);
 #else

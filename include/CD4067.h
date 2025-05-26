@@ -10,24 +10,24 @@
 #include <vector>
 
 
-class CD4067
+class CD4067 final
 {
 public:
-  std::unique_ptr<ESP32AnalogRead> pESP_ADC;
-  const int8_t                     IO_PIN;
-  uint16_t                         pin_mask; // 0=inactive, 1=active
-  uint16_t                         pin_mode; // 0=digital, 1=analog
+  std::unique_ptr<ESP32AnalogRead>  pESP_ADC;
+  const int8_t                      IO_PIN;
+  uint16_t                          pin_mask; // 0=inactive, 1=active
+  uint16_t                          pin_mode; // 0=digital, 1=analog
 
-  volatile uint16_t                    MUXREG;
-  std::map<uint8_t, volatile uint16_t> ANALOG_REG;
+  uint16_t                          MUXREG;
+  uint16_t                          ANALOG_REG[16] = {0};
 
   CD4067(int8_t IO_PIN);
   CD4067(std::unique_ptr<ESP32AnalogRead> pESP_ADC);
 
   void            enable_pin(uint8_t pin, bool is_analog = 0);
   void            disable_pin(uint8_t pin);
-  void            read_pin(uint8_t pin);
-  inline uint16_t get_val(uint8_t pin);
+  void  IRAM_ATTR read_pin(uint8_t pin);
+  uint16_t        get_val(uint8_t pin);
 };
 
 
@@ -35,10 +35,14 @@ class MultiMux
 {
   uint8_t ADDR[4];
 
-  void                muxEnable(uint8_t channel, uint8_t delayMicros = 0);
+  void IRAM_ATTR muxEnable(uint8_t channel, uint8_t delayMicros = 0);
   std::vector<CD4067> vMux;
 
 public:
+
+  MultiMux()
+  {}
+
   MultiMux(const uint8_t *const ADDR_PINS)
   {
     for (uint8_t n = 0; n < 4; ++n)
@@ -80,7 +84,7 @@ public:
     vMux[mux_idx].enable_pin(mux_pin, true);
   }
 
-  void service();
+  void IRAM_ATTR service();
 
   uint16_t get_val(uint8_t pin, uint8_t object_index = 0);
 };

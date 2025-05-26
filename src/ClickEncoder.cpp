@@ -54,7 +54,7 @@ ClickEncoder::ClickEncoder(int8_t A,
 // ----------------------------------------------------------------------------
 // call this every 1 millisecond via timer ISR
 //
-void ClickEncoder::service(void)
+void IRAM_ATTR ClickEncoder::service(void)
 {
   long encoded = 0;
   long tmpMSB = (long)readA();
@@ -147,17 +147,17 @@ void ClickEncoder::service(void)
   hwButton->service();
 }
 
-bool ClickEncoder::readA()
+bool IRAM_ATTR ClickEncoder::readA()
 {
-  return (directRead(pinA) ^ activeLow);
+  return (directRead_IRAM(pinA) ^ activeLow);
 }
 
-bool ClickEncoder::readB()
+bool IRAM_ATTR ClickEncoder::readB()
 {
-  return (directRead(pinB) ^ activeLow);
+  return (directRead_IRAM(pinB) ^ activeLow);
 }
 
-void ClickEncoder::onPinChange()
+void IRAM_ATTR ClickEncoder::onPinChange()
 {
   MSB = readB();
   LSB = readA();

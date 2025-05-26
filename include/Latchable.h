@@ -11,6 +11,8 @@
 // ------------------------------------------------------------------------
 #pragma once
 
+#include <type_traits>
+
 template <typename T>
   class latchable
 {
@@ -30,10 +32,22 @@ public:
   const T& out;     // Read-only OUTPUT state
   T& in;            // DATA input/SET value
 
+  // Default constructor (only enabled if T is default-constructible)
+  template <typename U = T,
+            typename = typename std::enable_if<std::is_default_constructible<U>::value>::type>
+  latchable():
+    ParamR(),
+    ParamQ(),
+    ParamS(ParamQ),
+    enabled(true),
+    out(ParamQ),
+    in(ParamS)
+  { ; }
+
   // CTOR
-  latchable(T data = 0):
-    ParamR(data),
-    ParamQ(data),
+  latchable(T data):
+    ParamR(static_cast<T>(data)),
+    ParamQ(static_cast<T>(data)),
     ParamS(ParamQ),
     enabled(true),
     out(ParamQ),

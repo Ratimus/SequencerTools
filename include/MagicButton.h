@@ -62,16 +62,13 @@ protected:
   volatile uint64_t debounceTS;
   volatile uint16_t buff; // Moving window to record multiple readings
 
-  virtual bool readPin()
+  virtual bool IRAM_ATTR readPin()
   {
     if (pin < 0)
     {
       return 0;
     }
-
-    cli();
-    bool ret = pullup ^ (bool)directRead(pin);
-    sei();
+    bool ret = pullup ^ (bool)directRead_IRAM(pin);
     return ret;
   }
 
@@ -99,6 +96,6 @@ public:
     }
   }
 
-  void service();
+  void IRAM_ATTR service();
   ButtonState read();
 };

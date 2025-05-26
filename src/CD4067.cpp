@@ -1,5 +1,4 @@
 #include "CD4067.h"
-#include "DirectIO.h"
 
 static const uint8_t  GRAY_CODE[16] = {0,  1,  3,  2,  6,  7,  5, 4,
                                        12, 13, 15, 14, 10, 11, 9, 8};
@@ -10,9 +9,11 @@ static const uint32_t BITMASK_32[]  = {
     1U << 21, 1U << 22, 1U << 23, 1U << 24, 1U << 25, 1U << 26, 1U << 27,
     1U << 28, 1U << 29, 1U << 30, 1U << 31};
 
-CD4067::CD4067(int8_t IO_PIN)
-    : pESP_ADC(std::unique_ptr<ESP32AnalogRead>(nullptr)), IO_PIN(IO_PIN),
-      pin_mask(0), pin_mode(0)
+CD4067::CD4067(int8_t IO_PIN):
+  pESP_ADC(std::unique_ptr<ESP32AnalogRead>(nullptr)),
+  IO_PIN(IO_PIN),
+  pin_mask(0),
+  pin_mode(0)
 {
   pinMode(IO_PIN, INPUT);
 }
@@ -48,7 +49,7 @@ void CD4067::disable_pin(uint8_t pin)
   pin_mode &= (uint16_t)~BITMASK_32[pin];
 }
 
-void CD4067::read_pin(uint8_t pin)
+void IRAM_ATTR CD4067::read_pin(uint8_t pin)
 {
   // Inactive pin
   if (!(pin_mask & (uint16_t)BITMASK_32[pin]))
@@ -75,7 +76,7 @@ void CD4067::read_pin(uint8_t pin)
     return;
   }
 
-  if (directRead(IO_PIN))
+  if (directRead_IRAM(IO_PIN))
   {
     MUXREG |= (uint16_t)BITMASK_32[pin];
     return;
@@ -84,7 +85,7 @@ void CD4067::read_pin(uint8_t pin)
   MUXREG &= (uint16_t)~BITMASK_32[pin];
 }
 
-inline uint16_t CD4067::get_val(uint8_t pin)
+inline uint16_t IRAM_ATTR CD4067::get_val(uint8_t pin)
 {
   uint16_t ret         = 0;
   uint16_t access_mask = (uint16_t)BITMASK_32[pin];
@@ -94,7 +95,6 @@ inline uint16_t CD4067::get_val(uint8_t pin)
     return ret;
   }
 
-  cli();
   if (!(pin_mode & access_mask))
   {
     ret = MUXREG & access_mask;
@@ -103,38 +103,37 @@ inline uint16_t CD4067::get_val(uint8_t pin)
   {
     ret = ANALOG_REG[pin];
   }
-  sei();
 
   return ret;
 }
 
-void MultiMux::muxEnable(uint8_t channel, uint8_t delayMicros)
+void IRAM_ATTR MultiMux::muxEnable(uint8_t channel, uint8_t delayMicros)
 {
   static uint8_t CURRENT_CHANNEL = 0b00001111;
   uint8_t        diff            = CURRENT_CHANNEL ^ channel;
   for (auto n(0); n < 4; ++n)
   {
     uint8_t mask = (0x01 << n);
-    if (diff ^ mask)
+    if ((diff & mask) == 0)
     {
       continue;
     }
 
     if (channel & mask)
     {
-      directWriteHigh(ADDR[n]);
+      directWriteHigh_IRAM(ADDR[n]);
     }
     else
     {
-      directWriteLow(ADDR[n]);
+      directWriteLow_IRAM(ADDR[n]);
     }
   }
 
   CURRENT_CHANNEL = channel;
-  delayMicroseconds(delayMicros);
+  ets_delay_us(delayMicros);
 }
 
-void MultiMux::service()
+void IRAM_ATTR MultiMux::service()
 {
   for (auto n : GRAY_CODE)
   {
@@ -147,7 +146,7 @@ void MultiMux::service()
 }
 
 // If you only have one mux, you don't need to pass the object index
-uint16_t MultiMux::get_val(uint8_t pin, uint8_t object_index)
+uint16_t IRAM_ATTR MultiMux::get_val(uint8_t pin, uint8_t object_index)
 {
   return vMux[object_index].get_val(pin);
 }

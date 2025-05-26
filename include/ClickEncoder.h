@@ -27,7 +27,7 @@ public:
                bool usePullResistor = true);
 
   // Call every 1 ms in ISR
-  virtual void service(void);
+  virtual void IRAM_ATTR service(void);
 
   // Get current state and free for further updates
   int16_t readPosition(void);
@@ -49,11 +49,11 @@ protected:
   volatile int16_t position;
   volatile uint16_t acceleration;
 
-  virtual bool readA();
-  virtual bool readB();
+  virtual bool IRAM_ATTR readA();
+  virtual bool IRAM_ATTR readB();
 
   std::unique_ptr<MagicButton> hwButton;
 
 public:
-  void onPinChange();
+  void IRAM_ATTR onPinChange();
 };
