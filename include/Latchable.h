@@ -1,17 +1,31 @@
 // ------------------------------------------------------------------------
 // Latchable.h
 //
-// Defines a software model of a hardware latch or register's set/clock/clear
-// functionality. Allows you to set and forget the next value you want the
-// output to take; the output won't change until the precise moment you want
-// it to (i.e. when you set its clock input HIGH)
+// Defines a software model of a hardware D-type latch or register's
+// set/clock/clear functionality. Allows you to set and forget the next value
+// you want the output to take; the output won't change until the precise
+// moment you want it to (i.e. when you set its clock input HIGH)
 //
 // Nov. 2023
 // Ryan "Ratimus" Richardson
+//
+// EXAMPLE USAGE:
+//  latchable<uint8_t> button_latch;
+//
+//  button_latch.onChange([](const uint8_t& from, const uint8_t& to)
+//  {
+//    std::cout << "Button changed from " << from << " to " << to << "\n";
+//  });
+//
+//  button_latch.set(1);
+//  button_latch.clock();
+//
 // ------------------------------------------------------------------------
 #pragma once
-
+#include <mutex>
 #include <type_traits>
+#include <functional>
+
 
 template <typename T>
   class latchable
@@ -27,6 +41,9 @@ protected:
   T ParamQ;         // Output state
   T ParamS;         // Input state
   bool enabled;     // Set low to hold output state constant regardless of input
+
+  mutable std::mutex latch_mutex;
+  std::function<void(const T&, const T&)> on_change_callback;
 
 public:
   const T& out;     // Read-only OUTPUT state
@@ -77,6 +94,7 @@ public:
   // Loads input but doesn't set ouput until a clock is received
   virtual T set(T val)
   {
+    std::lock_guard<std::mutex> lock(latch_mutex);
     if (enabled)
     {
       ParamS = val;
@@ -88,29 +106,80 @@ public:
   // Latches internal state to output
   virtual T clock(void)
   {
-    if (enabled)
+    std::function<void(const T&, const T&)> callback_copy;
+    T previous;
+    T current;
+
     {
-      ParamQ = ParamS;
+      std::lock_guard<std::mutex> lock(latch_mutex);
+      if (enabled && ParamQ != ParamS)
+      {
+        previous = ParamQ;
+        ParamQ = ParamS;
+        current = ParamQ;
+        callback_copy = on_change_callback;
+      }
+      else
+      {
+        return out; // No change; no callback
+      }
     }
-    return out;
+
+    // Invoke callback outside the lock to prevent deadlocks
+    if (callback_copy)
+    {
+      callback_copy(previous, current);
+    }
+
+    return current;
   }
 
   // Latches in data and sets output in a single step
   virtual T clockIn(T val)
   {
-    set(val);
-    return clock();
+    std::function<void(const T&, const T&)> callback_copy;
+    T previous;
+    T current;
+
+    {
+      std::lock_guard<std::mutex> lock(latch_mutex);
+      if (!enabled)
+      {
+        return out;
+      }
+
+      ParamS = val;
+      if (ParamQ == ParamS)
+      {
+        return out;
+      }
+
+      previous      = ParamQ;
+      ParamQ        = ParamS;
+      current       = ParamQ;
+      callback_copy = on_change_callback;
+    }
+
+    if (callback_copy)
+    {
+      callback_copy(previous, current);
+    }
+
+    return current;
   }
+
 
   // Clears internal state without affecting output
   virtual void clear()
   {
+    std::lock_guard<std::mutex> lock(latch_mutex);
     set(ParamR);
   }
 
   // Clears internal state and outputs
   virtual void reset()
   {
+    std::lock_guard<std::mutex> lock(latch_mutex);
     clear();
     clock();
   }
@@ -118,6 +187,7 @@ public:
   // Returns true if current output state does not match input state
   virtual bool pending()
   {
+    std::lock_guard<std::mutex> lock(latch_mutex);
     return (in != out);
   }
 
@@ -138,6 +208,12 @@ public:
   virtual bool operator == (T comp)
   {
     return (comp == this->ParamQ);
+  }
+
+  void onChange(std::function<void(const T&, const T&)> cb)
+  {
+    std::lock_guard<std::mutex> lock(latch_mutex);
+    on_change_callback = cb;
   }
 
   template <typename N>
