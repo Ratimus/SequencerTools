@@ -18,13 +18,13 @@ protected:
   virtual bool readB() override
   {
     assert (pMux);
-    return (bool)pMux->get_val(pinB, mux_index);
+    return !(bool)pMux->get_val(pinB, mux_index);
   }
 
   virtual bool readA() override
   {
     assert (pMux);
-    return (bool)pMux->get_val(pinA, mux_index);
+    return !(bool)pMux->get_val(pinA, mux_index);
   }
 
 public:
