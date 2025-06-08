@@ -75,7 +75,10 @@ void printBits(uint16_t val)
   for (auto bit = 0; bit < 16; ++bit)
   {
     dbprint(bitRead(val, bit) ? '1' : '0');
-    if (bit == 7) dbprint(" ");
+    if (bit == 7)
+    {
+      dbprint(" ");
+    }
   }
   dbprintln(' ');
 }

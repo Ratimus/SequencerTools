@@ -41,15 +41,13 @@ typedef enum Button_e
 const uint16_t debounceUP(0b0111111111111111); // More leading zeros will increase sensitivity
 const int16_t debounceDN(~debounceUP);
 
-// Button configuration (values for 1ms timer service calls)
-//
-const uint16_t DOUBLECLICKTIME(150); // Count two clicks as doubleclick if both received within this time
-const uint16_t PRESSTIME(250);
-const uint16_t HOLDTIME(300); // Report held button after time
-
 class MagicButton
 {
 protected:
+  // Button configuration (values for 1ms timer service calls)
+  uint16_t DOUBLECLICKTIME = 150;
+  uint16_t PRESSTIME       = 250;
+  uint16_t HOLDTIME        = 300;
 
   int8_t    pin;  // HW pin
   bool      pullup; // Enable pullup resistor if active low
@@ -80,20 +78,28 @@ public:
   // Constructor
   MagicButton(int8_t pin,
               bool pullup,
-              bool doubleClickable) : pin(pin),
-                                      pullup(pullup),
-                                      doubleClickable(doubleClickable),
-                                      dbnceIntvl(25),
-                                      state{ButtonState::Open, ButtonState::Open},
-                                      buttonDown(0),
-                                      outputCleared(1),
-                                      debounceTS(0),
-                                      buff(0)
+              bool doubleClickable)
+    : pin(pin),
+      pullup(pullup),
+      doubleClickable(doubleClickable),
+      dbnceIntvl(25),
+      state{ButtonState::Open, ButtonState::Open},
+      buttonDown(0),
+      outputCleared(1),
+      debounceTS(0),
+      buff(0)
   {
     if (pin != -1)
     {
       pinMode(pin, pullup ? INPUT_PULLUP : INPUT);
     }
+  }
+
+  void make_toggle(uint16_t time = 20)
+  {
+    DOUBLECLICKTIME = 1;
+    PRESSTIME       = 2;
+    HOLDTIME        = time;
   }
 
   void IRAM_ATTR service();

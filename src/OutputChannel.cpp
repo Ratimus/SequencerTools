@@ -3,19 +3,18 @@
 
 
 OutputChannel::OutputChannel(uint8_t ch, dac_ptr pDac /*=nullptr*/):
-  latchable<uint16_t>((uint16_t)0),
   calVals(CalTable(ch)),
   MCP(pDac)
 {
   if (MCP != nullptr)
   {
-    clockIn(0);
+    latch.clock_in(0);
   }
 }
 
 
 // Sets up a note to be written to DAC (which it will write when clocked)
-uint16_t OutputChannel::set(uint16_t note)
+uint16_t OutputChannel::set_input(uint16_t note)
 {
   if (note > 255)
   {
@@ -23,7 +22,7 @@ uint16_t OutputChannel::set(uint16_t note)
   }
 
   uint16_t nextVal = calVals.valFromNote((uint16_t)note);
-  latchable<uint16_t>::set(nextVal);
+  latch.set_input(nextVal);
   return note;
 }
 
@@ -31,7 +30,7 @@ uint16_t OutputChannel::set(uint16_t note)
 // Latches the raw value corresponding to its note and writes it to the DAC
 uint16_t OutputChannel::clock()
 {
-  uint16_t setVal = latchable<uint16_t>::clock();
+  uint16_t setVal = latch.clock();
   if (MCP == nullptr)
   {
     dbprintf("OutputChannel %u DAC is a nullptr!\n", calVals.logicalChannel);
@@ -43,5 +42,11 @@ uint16_t OutputChannel::clock()
                         MCP4728_VREF_INTERNAL,
                         MCP4728_GAIN_2X);
   return setVal;
+}
+
+uint16_t OutputChannel::clock_in(uint16_t val)
+{
+  latch.set_input(val);
+  return clock();
 }
 

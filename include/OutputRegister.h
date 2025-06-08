@@ -99,7 +99,7 @@ public:
     T mask(T(0xFF)  << (8 * bytenum));
     T temp(D() & ~mask);
     temp |= setVal;
-    latchable<T>::set(temp);
+    latchable<T>::set_input(temp);
   }
 
   // Returns Output value

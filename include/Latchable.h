@@ -12,10 +12,12 @@
 // EXAMPLE USAGE:
 //  latchable<uint8_t> button_latch;
 //
-//  button_latch.onChange([](const uint8_t& from, const uint8_t& to)
-//  {
-//    std::cout << "Button changed from " << from << " to " << to << "\n";
-//  });
+//  button_latch.register_callback(
+//    [](const uint8_t& from, const uint8_t& to)
+//    {
+//      std::cout << "Button changed from " << from << " to " << to << "\n";
+//    }
+//  );
 //
 //  button_latch.set(1);
 //  button_latch.clock();
@@ -28,10 +30,9 @@
 
 
 template <typename T>
-  class latchable
+class latchable
 {
-protected:
-  // These values are protected, so access to them is limited.
+private:
   // We have |out|, a const reference to the output state ParamQ, meaning it's essentially
   // a read-only value.
   // We *can* change the value of |in|, our Data input, which is a reference to ParamS.
@@ -43,7 +44,7 @@ protected:
   bool enabled;     // Set low to hold output state constant regardless of input
 
   mutable std::mutex latch_mutex;
-  std::function<void(const T&, const T&)> on_change_callback;
+  std::function<void(const T&, const T&)> on_change_callback = nullptr;
 
 public:
   const T& out;     // Read-only OUTPUT state
@@ -63,8 +64,8 @@ public:
 
   // CTOR
   latchable(T data):
-    ParamR(static_cast<T>(data)),
-    ParamQ(static_cast<T>(data)),
+    ParamR(data),
+    ParamQ(data),
     ParamS(ParamQ),
     enabled(true),
     out(ParamQ),
@@ -85,135 +86,160 @@ public:
   ~latchable() { ; }
 
   // Just like on a HW latch - set LOW and it won't do anything
-  virtual bool enable(bool en = true)
+  bool enable(bool en = true)
   {
     enabled = en;
     return enabled;
   }
 
-  // Loads input but doesn't set ouput until a clock is received
-  virtual T set(T val)
+  // Sets INPUT to argument but doesn't set output
+  T set_input(const T& val)
   {
     std::lock_guard<std::mutex> lock(latch_mutex);
-    if (enabled)
-    {
-      ParamS = val;
-    }
-
+    ParamS = val;
     return ParamS;
   }
 
-  // Latches internal state to output
-  virtual T clock(void)
+  // Sets OUTPUT to value of INPUT if ENABLED
+  T clock()
   {
-    std::function<void(const T&, const T&)> callback_copy;
+    bool changed = false;
     T previous;
     T current;
 
     {
       std::lock_guard<std::mutex> lock(latch_mutex);
-      if (enabled && ParamQ != ParamS)
+      previous = ParamQ;
+      current  = ParamS;
+
+      if (enabled && (previous != current))
       {
-        previous = ParamQ;
         ParamQ = ParamS;
-        current = ParamQ;
-        callback_copy = on_change_callback;
-      }
-      else
-      {
-        return out; // No change; no callback
+        changed = true;
       }
     }
 
     // Invoke callback outside the lock to prevent deadlocks
-    if (callback_copy)
+    if (changed && on_change_callback)
     {
-      callback_copy(previous, current);
+      on_change_callback(previous, current);
     }
 
     return current;
   }
 
-  // Latches in data and sets output in a single step
-  virtual T clockIn(T val)
+  // Latches in data and sets output in a single step if ENABLED
+  T clock_in(const T& val)
   {
-    std::function<void(const T&, const T&)> callback_copy;
-    T previous;
-    T current;
-
-    {
-      std::lock_guard<std::mutex> lock(latch_mutex);
-      if (!enabled)
-      {
-        return out;
-      }
-
-      ParamS = val;
-      if (ParamQ == ParamS)
-      {
-        return out;
-      }
-
-      previous      = ParamQ;
-      ParamQ        = ParamS;
-      current       = ParamQ;
-      callback_copy = on_change_callback;
-    }
-
-    if (callback_copy)
-    {
-      callback_copy(previous, current);
-    }
-
-    return current;
+    set_input(val);
+    return clock();
   }
 
+  // Resets INPUT state to RESET value and CLOCKS it to the OUTPUT if ENABLED
+  void reset()
+  {
+    clock_in(ParamR);
+  }
 
-  // Clears internal state without affecting output
-  virtual void clear()
+  ///////////////////////////////////////////////////////////////////////////////////
+  //  ASYNCHRONOUS FUNCTIONS
+
+  // Asynchronous - forces INPUT to immediately take the value of RESET if ENABLED
+  void jam()
   {
     std::lock_guard<std::mutex> lock(latch_mutex);
-    set(ParamR);
+    if (enabled)
+    {
+      ParamS = ParamR;
+    }
   }
 
-  // Clears internal state and outputs
-  virtual void reset()
+  // Asynchronous - foces RESET and INPUT to immediately take the value of agument if ENABLED
+  void jam(const T& val)
   {
     std::lock_guard<std::mutex> lock(latch_mutex);
-    clear();
-    clock();
+    if (enabled)
+    {
+      ParamS = ParamR = val;
+    }
   }
 
-  // Returns true if current output state does not match input state
-  virtual bool pending()
+  // Asynchronous - forces INPUT and OUTPUT to immediately take value of RESET if ENABLED
+  T clear()
+  {
+    std::lock_guard<std::mutex> lock(latch_mutex);
+    if (enabled)
+    {
+      ParamQ = ParamS = ParamR;
+    }
+
+    return out;
+  }
+
+  // Asynchronous - forces OUTPUT to immediately take value of INPUT if ENABLED
+  T preset()
+  {
+    std::lock_guard<std::mutex> lock(latch_mutex);
+    if (enabled)
+    {
+      ParamQ = ParamS;
+    }
+
+    return out;
+  }
+
+  // Asynchronous - forces OUTPUT and INPUT to immediately take value of argument if ENABLED
+  T preset(const T& val)
+  {
+    std::lock_guard<std::mutex> lock(latch_mutex);
+    ParamS = val;
+    if (enabled)
+    {
+      ParamQ = ParamS;
+    }
+
+    return out;
+  }
+
+  // Asynchronous - immediately sets INPUT to OUTPUT
+  T loopback()
+  {
+    std::lock_guard<std::mutex> lock(latch_mutex);
+    if (enabled)
+    {
+      ParamS = ParamQ;
+    }
+
+    return out;
+  }
+  ///////////////////////////////////////////////////////////////////////////////////
+  //  COMPARATOR FUNCTIONS
+
+  // Register a callback to fire when value changes
+  void register_callback(std::function<void(const T&, const T&)> cb)
+  {
+    std::lock_guard<std::mutex> lock(latch_mutex);
+    on_change_callback = std::move(cb);
+  }
+
+  // Returns true if OUTPUT state does not match INPUT state
+  bool pending()
   {
     std::lock_guard<std::mutex> lock(latch_mutex);
     return (in != out);
   }
 
-  // Change the default value to which element reverts on RESET
-  virtual void preEnable(T val)
-  {
-    ParamR = val;
-  }
-
   // Comparison to another latchable<T>, returns true if both outputs match
   // (input, enable, and reset values ignored)
-  virtual bool operator == (latchable<T> comp)
+  bool operator == (const latchable<T>& comp) const
   {
     return (comp.ParamQ == this->ParamQ);
   }
 
   // Comparison to base type, returns true if output == comparison value
-  virtual bool operator == (T comp)
+  bool operator == (T comp) const
   {
     return (comp == this->ParamQ);
-  }
-
-  void onChange(std::function<void(const T&, const T&)> cb)
-  {
-    std::lock_guard<std::mutex> lock(latch_mutex);
-    on_change_callback = cb;
   }
 
   template <typename N>

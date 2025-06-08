@@ -15,7 +15,7 @@ void MultiChannelDac::setChannelNote(uint8_t channel, uint8_t note)
     return;
   }
 
-  DAC[channel]->clockIn((uint16_t)note);
+  DAC[channel]->clock_in((uint16_t)note);
 }
 
 void MultiChannelDac::init()
@@ -52,5 +52,5 @@ void MultiChannelDac::init()
 
 uint16_t MultiChannelDac::getChannelVal(uint8_t ch)
 {
-  return DAC[ch]->out;
+  return DAC[ch].get()->latch.out;
 }
