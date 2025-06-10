@@ -88,6 +88,7 @@ public:
   // Just like on a HW latch - set LOW and it won't do anything
   bool enable(bool en = true)
   {
+    std::lock_guard<std::mutex> lock(latch_mutex);
     enabled = en;
     return enabled;
   }
