@@ -55,3 +55,8 @@ const byte MASK6(MASK5 << 1);
 const byte MASK7(MASK6 << 1);
 
 const byte GATE_MASKS[8] = {MASK0, MASK1, MASK2, MASK3, MASK4, MASK5, MASK6, MASK7};
+
+template<typename T, size_t N>
+constexpr size_t array_length(const T (&)[N]) noexcept {
+    return N;
+}
