@@ -10,6 +10,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <atomic>
 #include "MagicButton.h"
 #include <memory>
 #include "RatFuncs.h"
@@ -30,7 +31,7 @@ public:
   virtual void IRAM_ATTR service(void);
 
   // Get current state and free for further updates
-  int16_t readPosition(void);
+  int32_t readPosition(void);
   ButtonState readButton(void);
 
 protected:
@@ -39,15 +40,13 @@ protected:
   uint8_t steps;
 
   const bool activeLow;
-  bool accelerationEnabled;
-  bool doubleClickable;
+  bool doubleClickable = true;
 
-  volatile uint32_t MSB;
-  volatile uint32_t LSB;
-  volatile uint32_t lastEncoded;
-  volatile int16_t delta;
-  volatile int16_t position;
-  volatile uint16_t acceleration;
+  uint32_t MSB;
+  uint32_t LSB;
+  uint32_t lastEncoded = 0;
+  int16_t delta = 0;
+  std::atomic<int32_t> position = 0;
 
   virtual bool IRAM_ATTR readA();
   virtual bool IRAM_ATTR readB();

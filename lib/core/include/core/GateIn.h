@@ -7,7 +7,7 @@
 #pragma once
 
 
-#include "Arduino.h"
+// #include "Arduino.h"
 #include "DirectIO.h"
 
 // Abstract Base Class for reading and storing the instantaneous states and keeping
@@ -51,11 +51,13 @@ public:
     sei();
   }
 
+  ~GateInABC() = default;
+
   // Call this in an ISR or in a loop.
   // You should service all your input gates at an interval that is less than the
   // shortest pulse you hope to register, e.g. if you want to catch a 10 millisecond
   // trigger, you'll need to call this faster than that
-  virtual void service()
+  virtual void IRAM_ATTR service()
   {
     uint32_t prev(_gates);
 
@@ -91,7 +93,7 @@ public:
 };
 
 // Arduino-specific implementation of GateIn class
-class GateInArduino : public GateInABC
+class GateInObj : public GateInABC
 {
 protected:
   uint8_t INPUT_MAP[MAX_GATES];
@@ -101,11 +103,11 @@ protected:
   {
     uint32_t ret(0);
 
-    for (uint8_t gate(0); gate < NUM_GATES; ++gate)
+    for (uint8_t gate = 0; gate < NUM_GATES; ++gate)
     {
 #ifdef DIRECT_IO
       // Li'l bit faster
-      bool val(directRead(INPUT_MAP[gate]) ^ _pullup);
+      bool val = (directRead(INPUT_MAP[gate]) ^ _pullup);
 #else
       // Tried and true
       bool val(digitalRead(INPUT_MAP[gate]) ^ _pullup);
@@ -116,7 +118,7 @@ protected:
   }
 
 public:
-  GateInArduino(const uint8_t numGates,
+  GateInObj(const uint8_t numGates,
                 const uint8_t pins[],
                 bool pullup = false):
     GateInABC(numGates),
@@ -133,6 +135,8 @@ public:
       }
     }
   }
+
+  ~GateInObj() = default;
 
   void setActiveLow(bool activeLow = true)
   {

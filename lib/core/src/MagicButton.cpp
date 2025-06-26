@@ -7,6 +7,32 @@
 #include "MagicButton.h"
 #include "DirectIO.h"
 
+MagicButton::MagicButton(int8_t pin,
+                         bool pullup,
+                         bool doubleClickable,
+                         bool init_pull)
+{
+  init(pin, pullup, doubleClickable, init_pull);
+}
+
+void MagicButton::init(int8_t pin,
+                       bool pullup,
+                       bool doubleClickable,
+                       bool init_pull)
+{
+  this->pin = pin;
+  this->pullup = pullup;
+  this->doubleClickable = doubleClickable;
+  state[0].store(ButtonState::Open, std::memory_order_release);
+  state[1].store(ButtonState::Open, std::memory_order_release);
+
+  if (pin > -1)
+  {
+    pinMode(pin, (pullup && init_pull) ? INPUT_PULLUP : INPUT);
+  }
+}
+
+
 // Read, debounce, and set output state. Once set, final output state will
 // persist until reported and reset by separate call to read()
 void IRAM_ATTR MagicButton::service()
@@ -41,15 +67,16 @@ void IRAM_ATTR MagicButton::service()
 
   long timeSinceChange = timeStamp - debounceTS;
 
-  switch (state[0])
+  switch (state[0].load(std::memory_order_acquire))
   {
   // Register initial button state change
   case ButtonState::Open: // Not pressed, and output has been read
   {
-    state[1] = ButtonState::Open; // Reset output state
+    // Reset output state
+    state[1].store(ButtonState::Open, std::memory_order_release);
     if (buttonDown)
     {
-      state[0] = ButtonState::Closed;
+      state[0].store(ButtonState::Closed, std::memory_order_release);
     }
     break;
   }
@@ -63,18 +90,18 @@ void IRAM_ATTR MagicButton::service()
     {
       if (!doubleClickable)
       {
-        state[1]      = ButtonState::Clicked;
-        state[0]      = ButtonState::Released;
-        outputCleared = false;
+        state[1].store(ButtonState::Clicked, std::memory_order_release);
+        state[0].store(ButtonState::Released, std::memory_order_release);
+        outputCleared.store(false, std::memory_order_release);
       }
       else
       {
-        state[0] = ButtonState::Clicked;
+        state[0].store(ButtonState::Clicked, std::memory_order_release);
       }
     }
     else if (timeSinceChange >= PRESSTIME)
     {
-      state[0] = ButtonState::Pressed;
+      state[0].store(ButtonState::Pressed, std::memory_order_release);
     }
     break;
   }
@@ -85,14 +112,14 @@ void IRAM_ATTR MagicButton::service()
     {
       if (timeSinceChange < DOUBLECLICKTIME)
       {
-        state[0] = ButtonState::DoubleClicked;
+        state[0].store(ButtonState::DoubleClicked, std::memory_order_release);
       }
     }
     else if (timeSinceChange >= DOUBLECLICKTIME)
     {
-      state[1]      = ButtonState::Clicked;
-      state[0]      = ButtonState::Released;
-      outputCleared = false;
+      state[1].store(ButtonState::Clicked, std::memory_order_release);
+      state[0].store(ButtonState::Released, std::memory_order_release);
+      outputCleared.store(false, std::memory_order_release);
     }
     break;
   }
@@ -103,15 +130,15 @@ void IRAM_ATTR MagicButton::service()
     {
       if (buttonDown)
       {
-        state[1]      = ButtonState::ClickedAndHeld;
-        state[0]      = ButtonState::ClickedAndHeld;
-        outputCleared = false;
+        state[1].store(ButtonState::ClickedAndHeld, std::memory_order_release);
+        state[0].store(ButtonState::ClickedAndHeld, std::memory_order_release);
+        outputCleared.store(false, std::memory_order_release);
       }
       else if (!buttonDown)
       {
-        state[1]      = ButtonState::DoubleClicked;
-        state[0]      = ButtonState::Released;
-        outputCleared = false;
+        state[1].store(ButtonState::DoubleClicked, std::memory_order_release);
+        state[0].store(ButtonState::Released, std::memory_order_release);
+        outputCleared.store(false, std::memory_order_release);
       }
     }
     break;
@@ -121,15 +148,15 @@ void IRAM_ATTR MagicButton::service()
   {
     if (!buttonDown)
     {
-      state[1]      = ButtonState::Pressed;
-      state[0]      = ButtonState::Released;
-      outputCleared = false;
+      state[1].store(ButtonState::Pressed, std::memory_order_release);
+      state[0].store(ButtonState::Released, std::memory_order_release);
+      outputCleared.store(false, std::memory_order_release);
     }
     else if (timeSinceChange >= HOLDTIME - PRESSTIME)
     {
-      state[1]      = ButtonState::Held;
-      state[0]      = ButtonState::Held;
-      outputCleared = false;
+      state[1].store(ButtonState::Held, std::memory_order_release);
+      state[0].store(ButtonState::Held, std::memory_order_release);
+      outputCleared.store(false, std::memory_order_release);
     }
     break;
   }
@@ -139,17 +166,17 @@ void IRAM_ATTR MagicButton::service()
   {
     if (!buttonDown)
     {
-      state[0] = ButtonState::Released;
+      state[0].store(ButtonState::Released, std::memory_order_release);
     }
     break;
   }
 
   case ButtonState::Released:
   {
-    if (outputCleared)
+    if (outputCleared.load(std::memory_order_release))
     {
-      state[0] = ButtonState::Open;
-      state[1] = ButtonState::Open;
+      state[0].store(ButtonState::Open, std::memory_order_release);
+      state[1].store(ButtonState::Open, std::memory_order_release);
     }
     // State persists until external read and clear
     break;
@@ -163,9 +190,10 @@ void IRAM_ATTR MagicButton::service()
 
   //////////////////////////////////////////
   // SERIAL DEBUGGING
-  if (state[1] != tmpState[1])
+  ButtonState current = state[1].load(std::memory_order_acquire);
+  if (current != tmpState[1])
   {
-    switch (state[1])
+    switch (current)
     {
     case ButtonState::ClickedAndHeld:
       Serial.println("CLICK CLIIIIIIIIIIII...");
@@ -203,8 +231,8 @@ void IRAM_ATTR MagicButton::service()
       break;
     }
   }
-  tmpState[0] = state[0];
-  tmpState[1] = state[1];
+  tmpState[0] = state[0].load(std::memory_order_acquire);
+  tmpState[1] = current;
   //////////////////////////////////////////
 #endif
 };
@@ -214,13 +242,10 @@ void IRAM_ATTR MagicButton::service()
 // HELD or PRESSED will be returned on each call
 ButtonState MagicButton::read(void)
 {
-  cli();
-  ButtonState retVal;
-  if (state[0] == ButtonState::Released)
+  ButtonState s0 = state[0].load(std::memory_order_acquire);
+  if (s0 == ButtonState::Released)
   {
-    outputCleared = true;
+    outputCleared.store(true, std::memory_order_release);
   }
-  retVal = state[1];
-  sei();
-  return retVal;
+  return state[1].load(std::memory_order_acquire);
 }

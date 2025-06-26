@@ -1,5 +1,4 @@
 // ----------------------------------------------------------------------------
-// Rotary Encoder Driver with Acceleration
 // Supports Click, DoubleClick, Long Click
 // Integrates debounced "MagicButton" and interfaces with ClickEncoderInterface
 //
@@ -11,13 +10,6 @@
 #include "DirectIO.h"
 
 // ----------------------------------------------------------------------------
-// Acceleration configuration (for 1000Hz calls to ::service())
-//
-const uint16_t ENC_ACCEL_TOP(3072); // max. acceleration: *12 (val >> 8)
-const uint8_t ENC_ACCEL_INC(25);
-const uint8_t ENC_ACCEL_DEC(2);
-
-// ----------------------------------------------------------------------------
 
 ClickEncoder::ClickEncoder(int8_t A,
                            int8_t B,
@@ -27,17 +19,11 @@ ClickEncoder::ClickEncoder(int8_t A,
   pinA(A),
   pinB(B),
   steps(stepsPerNotch),
-  activeLow(usePulllResistor),
-  accelerationEnabled(false),
-  doubleClickable(true),
-  lastEncoded(0),
-  delta(0),
-  position(0),
-  acceleration(0)
+  activeLow(usePulllResistor)
 {
   if (pinA != -1)
   {
-    hwButton = std::make_unique<MagicButton>(BTN, activeLow, doubleClickable);
+    hwButton = std::make_unique<MagicButton>(BTN, activeLow, true);
     uint8_t configType = activeLow ? INPUT_PULLUP : INPUT;
     pinMode(pinA, configType);
     pinMode(pinB, configType);
@@ -92,13 +78,13 @@ void IRAM_ATTR ClickEncoder::service(void)
     while (delta >= (int16_t)steps)
     {
       delta -= (int16_t)steps;
-      ++position;
+      position.fetch_add(1, std::memory_order_release);
     }
 
     while (delta <= -(int16_t)steps)
     {
       delta += (int16_t)steps;
-      --position;
+      position.fetch_sub(1, std::memory_order_release);
     }
 
     lastEncoded = encoded;
@@ -132,13 +118,13 @@ void IRAM_ATTR ClickEncoder::service(void)
     while (delta >= (int16_t)steps)
     {
       delta -= (int16_t)steps;
-      ++position;
+      position.fetch_add(1, std::memory_order_release);
     }
 
     while (delta <= -(int16_t)steps)
     {
       delta += (int16_t)steps;
-      --position;
+      position.fetch_sub(1, std::memory_order_release);
     }
 
     lastEncoded = encoded;
@@ -178,13 +164,13 @@ void IRAM_ATTR ClickEncoder::onPinChange()
   while (delta >= steps)
   {
     delta -= steps;
-    ++position;
+    position.fetch_add(1, std::memory_order_release);
   }
 
   while (delta <= -steps)
   {
     delta += steps;
-    --position;
+    position.fetch_sub(1, std::memory_order_release);
   }
 
   lastEncoded = encoded;
@@ -192,13 +178,9 @@ void IRAM_ATTR ClickEncoder::onPinChange()
 
 // ----------------------------------------------------------------------------
 
-int16_t ClickEncoder::readPosition(void)
+int32_t ClickEncoder::readPosition(void)
 {
-  cli();
-  int16_t ret = position;
-  sei();
-
-  return ret;
+  return position.load(std::memory_order_acquire);
 }
 
 // ----------------------------------------------------------------------------

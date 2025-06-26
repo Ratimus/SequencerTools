@@ -43,7 +43,7 @@ private:
   T ParamS;         // Input state
   bool enabled;     // Set low to hold output state constant regardless of input
 
-  mutable std::mutex latch_mutex;
+  mutable std::recursive_mutex latch_mutex;
   std::function<void(const T&, const T&)> on_change_callback = nullptr;
 
 public:
@@ -88,7 +88,7 @@ public:
   // Just like on a HW latch - set LOW and it won't do anything
   bool enable(bool en = true)
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     enabled = en;
     return enabled;
   }
@@ -96,7 +96,7 @@ public:
   // Sets INPUT to argument but doesn't set output
   T set_input(const T& val)
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     ParamS = val;
     return ParamS;
   }
@@ -109,7 +109,7 @@ public:
     T current;
 
     {
-      std::lock_guard<std::mutex> lock(latch_mutex);
+      std::lock_guard<std::recursive_mutex> lock(latch_mutex);
       previous = ParamQ;
       current  = ParamS;
 
@@ -148,7 +148,7 @@ public:
   // Asynchronous - forces INPUT to immediately take the value of RESET if ENABLED
   void jam()
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     if (enabled)
     {
       ParamS = ParamR;
@@ -158,7 +158,7 @@ public:
   // Asynchronous - foces RESET and INPUT to immediately take the value of agument if ENABLED
   void jam(const T& val)
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     if (enabled)
     {
       ParamS = ParamR = val;
@@ -168,7 +168,7 @@ public:
   // Asynchronous - forces INPUT and OUTPUT to immediately take value of RESET if ENABLED
   T clear()
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     if (enabled)
     {
       ParamQ = ParamS = ParamR;
@@ -180,7 +180,7 @@ public:
   // Asynchronous - forces OUTPUT to immediately take value of INPUT if ENABLED
   T preset()
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     if (enabled)
     {
       ParamQ = ParamS;
@@ -192,7 +192,7 @@ public:
   // Asynchronous - forces OUTPUT and INPUT to immediately take value of argument if ENABLED
   T preset(const T& val)
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     ParamS = val;
     if (enabled)
     {
@@ -205,7 +205,7 @@ public:
   // Asynchronous - immediately sets INPUT to OUTPUT
   T loopback()
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     if (enabled)
     {
       ParamS = ParamQ;
@@ -219,14 +219,14 @@ public:
   // Register a callback to fire when value changes
   void register_callback(std::function<void(const T&, const T&)> cb)
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     on_change_callback = std::move(cb);
   }
 
   // Returns true if OUTPUT state does not match INPUT state
   bool pending()
   {
-    std::lock_guard<std::mutex> lock(latch_mutex);
+    std::lock_guard<std::recursive_mutex> lock(latch_mutex);
     return (in != out);
   }
 

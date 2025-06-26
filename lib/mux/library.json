@@ -1,0 +1,14 @@
+{
+  "name": "mux",
+  "version": "1.0.0",
+  "build": {
+    "srcDir": "src",
+    "includeDir": "include",
+    "flags": [
+      "-I../core/include"
+    ]
+  },
+  "dependencies": [
+    "core"
+  ]
+}

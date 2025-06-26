@@ -8,6 +8,8 @@
 
 #include <Arduino.h>
 #include <memory>
+#include <atomic>
+
 #include "DirectIO.h"
 
 // #define DEBUG_BUTTON_STATES
@@ -49,16 +51,16 @@ protected:
   uint16_t PRESSTIME       = 250;
   uint16_t HOLDTIME        = 300;
 
-  int8_t    pin;  // HW pin
-  bool      pullup; // Enable pullup resistor if active low
-  bool      doubleClickable;
-  uint64_t  dbnceIntvl; // Debounce interval
+  int8_t    pin = -1;  // HW pin
+  bool      pullup = true; // Enable pullup resistor if active low
+  bool      doubleClickable = true;
+  uint64_t  dbnceIntvl = 25; // Debounce interval
 
-  volatile ButtonState state[2];
-  volatile bool buttonDown; // Raw data. We don't need to see it.
-  volatile bool outputCleared;
-  volatile uint64_t debounceTS;
-  volatile uint16_t buff; // Moving window to record multiple readings
+  std::atomic<ButtonState> state[2] = {ButtonState::Open, ButtonState::Open};
+  std::atomic<bool> outputCleared;
+  bool buttonDown = false;
+  uint64_t debounceTS = 0;
+  uint16_t buff = 0; // Moving window to record multiple readings
 
   virtual bool IRAM_ATTR readPin()
   {
@@ -66,8 +68,7 @@ protected:
     {
       return 0;
     }
-    bool ret = pullup ^ (bool)directRead_IRAM(pin);
-    return ret;
+    return (pullup ^ (bool)directRead_IRAM(pin));
   }
 
 #ifdef DEBUG_BUTTON_STATES
@@ -75,25 +76,20 @@ protected:
 #endif
 
 public:
+  MagicButton() = default;
+
   // Constructor
   MagicButton(int8_t pin,
               bool pullup,
-              bool doubleClickable)
-    : pin(pin),
-      pullup(pullup),
-      doubleClickable(doubleClickable),
-      dbnceIntvl(25),
-      state{ButtonState::Open, ButtonState::Open},
-      buttonDown(0),
-      outputCleared(1),
-      debounceTS(0),
-      buff(0)
-  {
-    if (pin != -1)
-    {
-      pinMode(pin, pullup ? INPUT_PULLUP : INPUT);
-    }
-  }
+              bool doubleClickable,
+              bool init_pull = true);
+
+  ~MagicButton() = default;
+
+  void init(int8_t pin,
+            bool pullup,
+            bool doubleClickable,
+            bool init_pull = true);
 
   void make_toggle(uint16_t time = 20)
   {
