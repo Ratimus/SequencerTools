@@ -2,9 +2,10 @@
 
 #include <Arduino.h>
 #include <Adafruit_MCP4728.h>
-#include "Latchable.h"
 #include <memory>
-#include "DAC_CalTable.h"
+
+#include <core/Latchable.h>
+#include <cv_out/DAC_CalTable.h>
 
 typedef std::shared_ptr<Adafruit_MCP4728> dac_ptr;
 

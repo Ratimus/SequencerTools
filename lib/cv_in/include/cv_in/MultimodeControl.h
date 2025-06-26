@@ -1,8 +1,9 @@
 #pragma once
 
 #include <Arduino.h>
-#include "ADC_Object.h"
-#include "ControlObject.h"
+
+#include <cv_in/ADC_Object.h>
+#include <cv_in/ControlObject.h>
 
 ////////////////////////////////////////////////
 //

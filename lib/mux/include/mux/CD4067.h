@@ -1,14 +1,13 @@
 #pragma once
 #include "ESP32AnalogRead.h"
-#include <core/DirectIO.h>
 #include <stdint.h>
-
 // If you don't like STL, rewrite classes as templates that take the number of
 // items as parameters
 #include <map>
 #include <memory>
 #include <vector>
 
+#include <core/DirectIO.h>
 
 class CD4067 final
 {

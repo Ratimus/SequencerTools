@@ -1,5 +1,6 @@
-#include "OutputDac.h"
 #include <Adafruit_MCP4728.h>
+
+#include <cv_out/OutputDac.h>
 
 MultiChannelDac::MultiChannelDac(uint8_t numCh, Adafruit_MCP4728 *pMCP) : MCP4728(pMCP),
                                                                           NUM_DAC_CHANNELS(numCh),

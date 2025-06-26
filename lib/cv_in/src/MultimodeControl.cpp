@@ -1,4 +1,4 @@
-#include "MultimodeControl.h"
+#include <cv_in/MultimodeControl.h>
 
 //////////////////////////////////////////////
 // Returns the number of VirtualCtrls sharing a single HwCtrl

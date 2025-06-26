@@ -1,8 +1,19 @@
 import os
 import json
+import re
 
 LIB_ROOT = "lib"
 DEFAULT_VERSION = "1.0.0"
+
+
+def get_includes_from_file(filepath):
+    includes = []
+    with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            match = re.match(r'#include\s*[<"]([^">]+)[">]', line)
+            if match:
+                includes.append(match.group(1))
+    return includes
 
 
 def create_library_json(lib_path, name, includes):
@@ -47,25 +58,43 @@ def create_library_json(lib_path, name, includes):
 
 
 def main():
-    for entry in os.listdir(LIB_ROOT):
+    lib_names = set(os.listdir(LIB_ROOT))
+    for entry in lib_names:
         sub_path = os.path.join(LIB_ROOT, entry)
-        if os.path.isdir(sub_path):
-            has_src = os.path.isdir(os.path.join(sub_path, "src"))
-            has_include = os.path.isdir(os.path.join(sub_path, "include"))
-            if has_src or has_include:
-                # Collect header includes for this sublib
-                includes = []
-                include_dir = os.path.join(sub_path, "include")
-                if os.path.isdir(include_dir):
-                    for root, _, files in os.walk(include_dir):
-                        for file in files:
-                            if file.endswith(".h") or file.endswith(".hpp"):
-                                rel_path = os.path.relpath(
-                                    os.path.join(root, file), start=include_dir
-                                )
-                                includes.append(rel_path.replace("\\", "/"))
+        if not os.path.isdir(sub_path):
+            continue
 
-                create_library_json(sub_path, entry, includes)
+        includes = []
+        # Scan include dir headers
+        include_dir = os.path.join(sub_path, "include")
+        if os.path.isdir(include_dir):
+            for root, _, files in os.walk(include_dir):
+                for file in files:
+                    if file.endswith((".h", ".hpp")):
+                        filepath = os.path.join(root, file)
+                        includes += get_includes_from_file(filepath)
+
+        # Scan src dir sources
+        src_dir = os.path.join(sub_path, "src")
+        if os.path.isdir(src_dir):
+            for root, _, files in os.walk(src_dir):
+                for file in files:
+                    if file.endswith((".h", ".hpp", ".c", ".cpp")):
+                        filepath = os.path.join(root, file)
+                        includes += get_includes_from_file(filepath)
+
+        # Filter includes to internal deps
+        internal_deps = sorted(
+            {
+                inc.split("/")[0]
+                for inc in includes
+                if "/" in inc
+                and inc.split("/")[0] in lib_names
+                and inc.split("/")[0] != entry
+            }
+        )
+
+        create_library_json(sub_path, entry, internal_deps)
 
 
 if __name__ == "__main__":

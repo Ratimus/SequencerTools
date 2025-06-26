@@ -1,10 +1,10 @@
 #pragma once
 
 #include <Arduino.h>
-#include "RatFuncs.h"
 #include <vector>
-#include "OutputChannel.h"
 #include <memory>
+#include <core/RatFuncs.h>
+#include <cv_out/OutputChannel.h>
 
 class MultiChannelDac
 {

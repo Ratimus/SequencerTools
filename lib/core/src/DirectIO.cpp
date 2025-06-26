@@ -1,4 +1,4 @@
-#include "DirectIO.h"
+#include <core/DirectIO.h>
 
 void IRAM_ATTR directWriteLow_IRAM(uint32_t pin)
 {

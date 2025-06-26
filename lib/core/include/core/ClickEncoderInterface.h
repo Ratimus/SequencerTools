@@ -8,8 +8,9 @@
 
 #include "Arduino.h"
 #include <memory>
-#include "ClickEncoder.h"
-#include "MagicButton.h"
+
+#include <core/ClickEncoder.h>
+#include <core/MagicButton.h>
 
 enum encEvnts
 {

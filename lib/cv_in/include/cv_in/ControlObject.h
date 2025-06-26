@@ -2,8 +2,9 @@
 
 #include <Arduino.h>
 #include <memory>
-#include "ADC_Object.h"
 #include <vector>
+
+#include <cv_in/ADC_Object.h>
 
 ////////////////////////////////////////////////
 // UNLOCKED:         control value is whatever the current reading is

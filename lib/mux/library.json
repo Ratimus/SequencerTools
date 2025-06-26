@@ -8,7 +8,5 @@
       "-I../core/include"
     ]
   },
-  "dependencies": [
-    "core"
-  ]
+  "dependencies": []
 }

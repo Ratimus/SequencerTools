@@ -1,6 +1,7 @@
-#include "CD4067.h"
-#include "MuxedButton.h"
 #include "freertos/FreeRTOS.h"
+
+#include <mux/CD4067.h>
+#include <mux/MuxedButton.h>
 
 portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
 

@@ -10,7 +10,7 @@
 #include <memory>
 #include <atomic>
 
-#include "DirectIO.h"
+#include <core/DirectIO.h>
 
 // #define DEBUG_BUTTON_STATES
 

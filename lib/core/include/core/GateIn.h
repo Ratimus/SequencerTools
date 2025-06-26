@@ -8,7 +8,7 @@
 
 
 // #include "Arduino.h"
-#include "DirectIO.h"
+#include <core/DirectIO.h>
 
 // Abstract Base Class for reading and storing the instantaneous states and keeping
 // track of rising and falling edges of a bank of digital inputs

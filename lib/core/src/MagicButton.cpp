@@ -4,8 +4,8 @@
 // Nov. 2022
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
-#include "MagicButton.h"
-#include "DirectIO.h"
+#include <core/MagicButton.h>
+#include <core/DirectIO.h>
 
 MagicButton::MagicButton(int8_t pin,
                          bool pullup,

@@ -11,9 +11,10 @@
 
 #include <Arduino.h>
 #include <atomic>
-#include "MagicButton.h"
 #include <memory>
-#include "RatFuncs.h"
+
+#include <core/MagicButton.h>
+#include <core/RatFuncs.h>
 
 // ----------------------------------------------------------------------------
 

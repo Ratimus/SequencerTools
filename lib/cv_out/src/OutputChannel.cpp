@@ -1,5 +1,5 @@
-#include "OutputChannel.h"
-#include "RatFuncs.h"
+#include <core/RatFuncs.h>
+#include <cv_out/OutputChannel.h>
 
 
 OutputChannel::OutputChannel(uint8_t ch, dac_ptr pDac /*=nullptr*/):

@@ -11,9 +11,10 @@
 
 
 #include <Arduino.h>
-#include "Latchable.h"
 #include <bitHelpers.h>
 #include <FastShiftOut.h>
+
+#include <core/Latchable.h>
 
 /*
   TODO: incorporate this in the library's example files:

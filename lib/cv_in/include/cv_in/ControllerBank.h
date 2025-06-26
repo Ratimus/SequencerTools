@@ -1,8 +1,9 @@
 #pragma once
 
 #include <Arduino.h>
-#include "MultimodeControl.h"
 #include <vector>
+
+#include <cv_in/MultimodeControl.h>
 
 class ControllerBank
 {

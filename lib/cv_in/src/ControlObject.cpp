@@ -1,4 +1,4 @@
-#include "ControlObject.h"
+#include <cv_in/ControlObject.h>
 
 
 ////////////////////////////////////////////////

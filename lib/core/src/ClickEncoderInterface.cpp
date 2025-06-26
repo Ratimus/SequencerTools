@@ -4,8 +4,9 @@
 // Nov. 2022
 // Ryan "Ratimus" Richardson
 // ------------------------------------------------------------------------
-#include "ClickEncoderInterface.h"
 #include <memory>
+
+#include <core/ClickEncoderInterface.h>
 
 // Constructor
 ClickEncoderInterface::ClickEncoderInterface(ClickEncoder *Enc, int8_t sense) : pEncoder(Enc),

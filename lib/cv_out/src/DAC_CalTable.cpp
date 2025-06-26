@@ -1,4 +1,4 @@
-#include "DAC_CalTable.h"
+#include <cv_out/DAC_CalTable.h>
 
 // DAC channels (maps indices to actual channels)
 static const uint8_t NUM_DAC_CHANNELS(4);
