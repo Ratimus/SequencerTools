@@ -1,0 +1,72 @@
+#pragma once
+
+#include <Arduino.h>
+#include <vector>
+#include <memory>
+#include <SequencerTools/RatFuncs.h>
+#include <SequencerTools/OutputChannel.h>
+
+class MultiChannelDac
+{
+  std::shared_ptr<Adafruit_MCP4728> MCP4728;
+  const uint8_t NUM_DAC_CHANNELS;
+  bool ready;
+  std::vector<channel_ptr> DAC;
+
+public:
+  MultiChannelDac(uint8_t numCh, Adafruit_MCP4728 *pMCP = nullptr);
+
+  void setChannelNote(uint8_t channel, uint8_t note);
+
+  void init();
+
+  uint16_t getChannelVal(uint8_t ch);
+};
+
+// // Allows you to fine-tune the output of each individual DAC channel using all eight faders.
+// // Save the values you get and use them to populate the calibration data in TMOC_HW.h
+// void calibrate()
+// {
+//   uint8_t selch(0);
+//   uint8_t selreg(1);
+//   leds.tempWrite(1, 0);
+//   leds.tempWrite(1, 1);
+
+//   uint16_t outval(0);
+//   faderBank[selch]->selectActiveBank(0);
+//   dbprintf("ch: %u\n", selch);
+//   while (true)
+//   {
+//     if (writeHigh.read())
+//     {
+//       writeRawValToDac(selch, 0);
+//       ++selch;
+
+//       if (selch == 4)
+//       {
+//         selch = 0;
+//       }
+
+//       selreg = 0 | (1 << selch);
+//       faderBank[selch]->selectActiveBank(0);
+//       leds.tempWrite(selreg, 0);
+//       leds.tempWrite(selreg, 1);
+//       dbprintf("ch: %u\n", selch);
+//     }
+
+//     outval = 0;
+//     for (uint8_t bn(0); bn < 8; ++bn)
+//     {
+//       outval += faderBank[sliderMap[bn]]->read() >> (1 + bn);
+//     }
+//     if (outval > 4095)
+//     {
+//       outval = 4095;
+//     }
+//     output.setChannelVal(selch, outval);
+//     if (writeLow.read())
+//     {
+//       dbprintf("%u\n", outval);
+//     }
+//   }
+// }

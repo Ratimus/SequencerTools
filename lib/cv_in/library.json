@@ -1,8 +1,0 @@
-{
-  "name": "cv_in",
-  "version": "1.0.0",
-  "build": {
-    "srcDir": "src",
-    "includeDir": "include"
-  }
-}
