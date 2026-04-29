@@ -11,7 +11,7 @@ class MuxedEncoder : public ClickEncoder
 {
 protected:
 
-  std::shared_ptr<MultiMux> pMux;
+  MultiMux * pMux;
   int8_t pinA;
   int8_t pinB;
   int8_t mux_index;
@@ -33,7 +33,7 @@ public:
   MuxedEncoder():
     ClickEncoder(-1, -1, -1, 4, true)
   {
-    pMux      = std::shared_ptr<MultiMux>(nullptr);
+    pMux      = nullptr;
     hwButton  = std::unique_ptr<MuxedButton>(nullptr);
     pinA      = -1;
     pinB      = -1;
@@ -45,11 +45,11 @@ public:
                int8_t stepsPerNotch,
                int8_t mux_index = 0):
     ClickEncoder(-1, -1, -1, stepsPerNotch, true),
+    pMux(mux),
     pinA((int8_t)pinNums[0]),
     pinB((int8_t)pinNums[1]),
     mux_index(mux_index)
   {
-    pMux     = std::shared_ptr<MultiMux>(mux);
     hwButton = std::make_unique<MuxedButton>(mux, pinNums[2], mux_index);
     init_vals();
   }
@@ -68,7 +68,7 @@ public:
                int8_t stepsPerNotch,
                int8_t mux_index = 0)
   {
-    pMux = std::shared_ptr<MultiMux>(mux);
+    pMux = mux;
     pinA = ((int8_t)pinNums[0]);
     pinB = ((int8_t)pinNums[1]);
     this->mux_index = mux_index;

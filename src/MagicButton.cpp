@@ -27,10 +27,6 @@ void MagicButton::init(int8_t pin,
 // persist until reported and reset by separate call to read()
 void IRAM_ATTR MagicButton::service()
 {
-  if (pin < 0)
-  {
-    return;
-  }
   uint64_t timeStamp = 0;
 
   // Shift buffer by one and tack the current value on the end
